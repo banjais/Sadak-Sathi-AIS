@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import { GoogleGenAI } from "@google/genai";
+// Fix: Replaced incorrect `FunctionDeclarationTool` with `Tool` and added `Type` for schema definitions.
+import { GoogleGenAI, Tool, Type, GenerateContentResponse } from "@google/genai";
 
 // Fix: To resolve "Cannot find namespace 'L'", declare the namespace for Leaflet types.
 // `declare var L: any` is not enough as it only declares the global variable, not the types.
@@ -13,6 +14,8 @@ declare namespace L {
     type FeatureGroup = any;
     type Marker = any;
     type Polyline = any;
+    type LatLng = any;
+    type LatLngBounds = any;
 }
 declare var L: any;
 
@@ -23,7 +26,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 // In a real application, this would come from an API.
 
 // Mock GeoJSON for roads
-const dorGeoJson = {
+const dorGeoJson: any = {
     "type": "FeatureCollection",
     "features": [
         {
@@ -62,19 +65,20 @@ const dorGeoJson = {
 };
 
 // Mock POIs (from "Google Sheets")
-const bridgePois = [
+let bridgePois = [
     { id: 1, name: "Maitighar Mandala", lat: 27.693, lng: 85.322, type: 'poi', status: 'Good condition' },
     { id: 2, name: "Thapathali Bridge", lat: 27.691, lng: 85.316, type: 'bridge', status: 'Under maintenance' },
+    { id: 5, name: "Patan Hospital", lat: 27.671, lng: 85.318, type: 'poi', status: 'Open 24/7' },
 ];
 
 // Mock Incidents (from "Waze")
-const wazeIncidents = [
+let wazeIncidents = [
     { id: 3, name: "Heavy Traffic", lat: 27.717, lng: 85.323, type: 'traffic', status: 'Active' },
     { id: 4, name: "Road Closure", lat: 27.70, lng: 85.4, type: 'closure', status: 'Active' },
 ];
 
-// Mock Traffic Data
-const mockTrafficData = [
+// Mock Traffic Data - this will be mutated to simulate live traffic
+let mockTrafficData = [
     { roadName: "Araniko Highway", traffic: "heavy" },
     { roadName: "Prithvi Highway", traffic: "moderate" },
     { roadName: "Local Road", traffic: "clear" },
@@ -100,7 +104,8 @@ const translations = {
         menu_driver: 'Driver',
         menu_profile: 'Profile',
         ai_chat_title: 'AI Assistant',
-        ai_chat_placeholder: 'Type a message...',
+        ai_chat_placeholder: 'Ask to find a place or report an incident...',
+        report_incident_prompt: 'I want to report an incident at ',
     },
     np: {
         layers: 'तहहरू',
@@ -119,7 +124,8 @@ const translations = {
         menu_driver: 'चालक',
         menu_profile: 'प्रोफाइल',
         ai_chat_title: 'एआई सहायक',
-        ai_chat_placeholder: 'सन्देश टाइप गर्नुहोस्...',
+        ai_chat_placeholder: 'ठाउँ खोज्न वा घटना रिपोर्ट गर्न सोध्नुहोस्...',
+        report_incident_prompt: 'म घटना रिपोर्ट गर्न चाहन्छु ',
     },
     hi: {
         layers: 'परतें',
@@ -138,7 +144,8 @@ const translations = {
         menu_driver: 'चालक',
         menu_profile: 'प्रोफ़ाइल',
         ai_chat_title: 'एआई सहायक',
-        ai_chat_placeholder: 'एक संदेश टाइप करें...',
+        ai_chat_placeholder: 'कोई स्थान खोजने या घटना की रिपोर्ट करने के लिए कहें...',
+        report_incident_prompt: 'मैं एक घटना की रिपोर्ट करना चाहता हूं ',
     }
 };
 
@@ -149,8 +156,12 @@ let bridgeLayer: L.FeatureGroup;
 let incidentLayer: L.FeatureGroup;
 let routeLayer: L.FeatureGroup;
 let userLocationMarker: L.Marker | null = null;
+let currentUserPosition: { lat: number, lng: number, heading: number | null } | null = null;
 let currentLang = 'en';
 let currentRouteCoords: [number, number][] | null = null;
+let chatHistory: any[] = []; // Store chat history for context
+let highAccuracyWatchId: number | null = null;
+let lowAccuracyWatchId: number | null = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
@@ -168,160 +179,100 @@ function initMap() {
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-
     const lightTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     });
-    
+
     const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
     });
-    
-    lightTiles.addTo(map);
 
-    // Store tile layers for theme toggling
-    (map as any).tileLayers = { light: lightTiles, dark: darkTiles };
+    lightTiles.addTo(map); // Default theme
 
-    addMapLayers();
-}
-
-
-function getTrafficStyle(feature: any) {
-    const trafficInfo = mockTrafficData.find(d => d.roadName === feature.properties.name);
-    const trafficStatus = trafficInfo ? trafficInfo.traffic : 'clear';
-    let color = 'var(--success-color)';
-    switch (trafficStatus) {
-        case 'heavy': color = 'var(--danger-color)'; break;
-        case 'moderate': color = 'var(--warning-color)'; break;
-    }
-    return { color, weight: 8, opacity: 1 };
-}
-
-function getRoadStatusStyle(feature: any) {
-    const style: { color: string, weight: number, dashArray?: string } = {
-        color: 'var(--panel-bg-color)', // Inner line color to contrast with traffic
-        weight: 4
+    // Store tile layers to switch them later
+    (map as any).tileLayers = {
+        light: lightTiles,
+        dark: darkTiles
     };
-    switch (feature.properties.status) {
-        case 'fair': style.dashArray = '5, 5'; break; // Dotted
-        case 'poor': style.dashArray = '10, 5'; break; // Dashed
-    }
-    return style;
-}
 
-
-function addMapLayers() {
-    // Traffic Layer (Bottom layer for color casing)
-    trafficLayer = L.geoJSON(dorGeoJson as any, {
-        style: getTrafficStyle
-    }).addTo(map);
-
-    // Road Status Layer (Top layer for physical status)
-    roadLayer = L.geoJSON(dorGeoJson as any, {
-        style: getRoadStatusStyle,
-        onEachFeature: (feature, layer) => {
-            const trafficInfo = mockTrafficData.find(d => d.roadName === feature.properties.name);
-            const trafficStatus = trafficInfo ? trafficInfo.traffic : 'clear';
-            layer.bindPopup(`<b>${feature.properties.name}</b><br>Status: ${feature.properties.status}<br>Traffic: ${trafficStatus}`);
-        }
-    }).addTo(map);
-
-    // Bridge/POI Layer
+    // Initialize layers
+    trafficLayer = L.geoJSON(undefined).addTo(map);
+    roadLayer = L.geoJSON(undefined, { onEachFeature: onEachRoad }).addTo(map);
     bridgeLayer = L.featureGroup().addTo(map);
-    bridgePois.forEach(poi => {
-        const icon = L.divIcon({
-            html: `<span class="material-icons" style="color: var(--primary-color); font-size: 32px;">${poi.type === 'bridge' ? 'location_city' : 'place'}</span>`,
-            className: '',
-            iconSize: [32, 32],
-            iconAnchor: [16, 32],
-        });
-        const marker = L.marker([poi.lat, poi.lng], { icon }).addTo(bridgeLayer);
-        marker.bindPopup(`<b>${poi.name}</b><br>${poi.status}`);
-        (marker as any).poiId = poi.id;
-    });
-
-    // Incident Layer
     incidentLayer = L.featureGroup().addTo(map);
-    wazeIncidents.forEach(incident => {
-         const icon = L.divIcon({
-            html: `<span class="material-icons" style="color: var(--danger-color); font-size: 32px;">${incident.type === 'traffic' ? 'traffic' : 'warning'}</span>`,
-            className: '',
-            iconSize: [32, 32],
-            iconAnchor: [16, 32],
-        });
-        const marker = L.marker([incident.lat, incident.lng], { icon }).addTo(incidentLayer);
-        marker.bindPopup(`<b>${incident.name}</b>`);
-        (marker as any).poiId = incident.id;
-    });
-
-    // Route Layer (initially empty)
     routeLayer = L.featureGroup().addTo(map);
-}
 
+    // Add initial data to layers
+    addRoadLayers();
+    addBridgeLayer(bridgePois);
+    addIncidentLayer(wazeIncidents);
+    
+    // Start live traffic simulation
+    setInterval(updateAndRefreshTraffic, 5000); // Update every 5 seconds
+}
 
 function initUI() {
     const themeToggle = document.getElementById('theme-toggle')!;
+    const languageSelect = document.getElementById('language-select')!;
+    const displayPanelHeader = document.getElementById('display-panel-header')!;
+    const displayPanel = document.getElementById('display-panel')!;
     const hamburgerMenu = document.getElementById('hamburger-menu')!;
     const settingsPanel = document.getElementById('settings-panel')!;
-    const aiAssistant = document.getElementById('ai-assistant') as HTMLButtonElement;
-    const langSelect = document.getElementById('language-select') as HTMLSelectElement;
-    const displayPanel = document.getElementById('display-panel')!;
-    const displayPanelHeader = document.getElementById('display-panel-header')!;
-    const blinkingDot = hamburgerMenu.querySelector('.blinking-dot')!;
-    const centerLocationBtn = document.getElementById('center-location-btn')!;
-
-    // Route Finder UI Elements
     const routeFinderTrigger = document.getElementById('route-finder-trigger')!;
     const routeFinderPanel = document.getElementById('route-finder-panel')!;
     const routeFinderClose = document.getElementById('route-finder-close')!;
     const findRouteBtn = document.getElementById('find-route-btn')!;
     const clearRouteBtn = document.getElementById('clear-route-btn')!;
     const shareRouteBtn = document.getElementById('share-route-btn')!;
-    
-    // AI Chat UI Elements
+    const aiAssistantBtn = document.getElementById('ai-assistant')!;
     const aiChatModal = document.getElementById('ai-chat-modal')!;
-    const aiChatClose = document.getElementById('ai-chat-close')!;
+    const aiChatCloseBtn = document.getElementById('ai-chat-close')!;
     const chatForm = document.getElementById('chat-form')!;
+    const centerLocationBtn = document.getElementById('center-location-btn')!;
+    const reportIncidentBtn = document.getElementById('report-incident-btn')!;
 
-    // Theme toggle
+    // Theme switcher
     themeToggle.addEventListener('click', () => {
         const container = document.getElementById('app-container')!;
-        const currentTheme = container.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        container.setAttribute('data-theme', newTheme);
-        themeToggle.querySelector('.material-icons')!.textContent = newTheme === 'dark' ? 'dark_mode' : 'light_mode';
-        
-        // Swap map tiles
-        if (newTheme === 'dark') {
-            map.removeLayer((map as any).tileLayers.light);
-            (map as any).tileLayers.dark.addTo(map);
-        } else {
-            map.removeLayer((map as any).tileLayers.dark);
-            (map as any).tileLayers.light.addTo(map);
-        }
+        const currentTheme = container.dataset.theme;
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        container.dataset.theme = newTheme;
+        themeToggle.querySelector('.material-icons')!.textContent = newTheme === 'light' ? 'light_mode' : 'dark_mode';
+        (map as any).removeLayer((map as any).tileLayers[currentTheme!]);
+        (map as any).addLayer((map as any).tileLayers[newTheme]);
     });
 
-    // Hamburger menu
-    hamburgerMenu.addEventListener('click', () => {
-        settingsPanel.classList.toggle('open');
-        // Hide dot on first click
-        if (!blinkingDot.classList.contains('hide')) {
-            blinkingDot.classList.add('hide');
-        }
+    // Language switcher
+    languageSelect.addEventListener('change', (e) => {
+        currentLang = (e.target as HTMLSelectElement).value;
+        updateLanguage();
     });
 
-    // Display Panel toggle
+    // Display panel toggle
     displayPanelHeader.addEventListener('click', () => {
         displayPanel.classList.toggle('collapsed');
-        // After the animation, invalidate the map size to fix rendering issues
-        setTimeout(() => {
-            map.invalidateSize();
-        }, 400); // Should match the transition duration in CSS
+        // Invalidate map size after animation to ensure it renders correctly
+        setTimeout(() => map.invalidateSize(), 400);
     });
+
+    // Settings panel toggle
+    hamburgerMenu.addEventListener('click', () => {
+        settingsPanel.classList.toggle('open');
+        const dot = hamburgerMenu.querySelector('.blinking-dot');
+        if (dot) dot.classList.add('hide');
+    });
+
+    // Route finder modal
+    routeFinderTrigger.addEventListener('click', () => routeFinderPanel.classList.remove('hidden'));
+    routeFinderClose.addEventListener('click', () => routeFinderPanel.classList.add('hidden'));
+    findRouteBtn.addEventListener('click', findOptimalRoute);
+    clearRouteBtn.addEventListener('click', clearRoute);
+    shareRouteBtn.addEventListener('click', shareRoute);
 
     // Layer toggles
     document.getElementById('toggle-roads')!.addEventListener('change', (e) => {
-        if ((e.target as HTMLInputElement).checked) {
+        const checked = (e.target as HTMLInputElement).checked;
+        if (checked) {
             map.addLayer(trafficLayer);
             map.addLayer(roadLayer);
         } else {
@@ -337,428 +288,549 @@ function initUI() {
         if ((e.target as HTMLInputElement).checked) map.addLayer(incidentLayer);
         else map.removeLayer(incidentLayer);
     });
+
+    // AI Assistant
+    const { onMouseDown } = makeDraggable(aiAssistantBtn, aiAssistantBtn);
+    aiAssistantBtn.addEventListener('mousedown', onMouseDown);
+    aiAssistantBtn.addEventListener('click', (e) => {
+        // Only open modal if it wasn't a drag
+        if (aiAssistantBtn.dataset.dragged !== 'true') {
+            aiChatModal.classList.remove('hidden');
+        }
+        aiAssistantBtn.dataset.dragged = 'false';
+    });
+    aiChatCloseBtn.addEventListener('click', () => aiChatModal.classList.add('hidden'));
+    chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleChatMessage();
+    });
+    // Make chat panel draggable
+    const chatPanel = document.querySelector('.chat-panel') as HTMLElement;
+    const chatHeader = document.getElementById('ai-chat-header') as HTMLElement;
+    const { onMouseDown: onPanelMouseDown } = makeDraggable(chatHeader, chatPanel);
+    chatHeader.addEventListener('mousedown', onPanelMouseDown);
     
-    // Center on location button
+    // Center on location
     centerLocationBtn.addEventListener('click', () => {
-        if (userLocationMarker) {
-            map.flyTo(userLocationMarker.getLatLng(), 16);
+        if (currentUserPosition) {
+            map.flyTo([currentUserPosition.lat, currentUserPosition.lng], 16);
         }
     });
 
-    // Route Finder Panel Logic
-    routeFinderTrigger.addEventListener('click', () => {
-        routeFinderPanel.classList.remove('hidden');
-    });
-    routeFinderClose.addEventListener('click', () => {
-        routeFinderPanel.classList.add('hidden');
-    });
-    findRouteBtn.addEventListener('click', findOptimalRoute);
-    clearRouteBtn.addEventListener('click', clearRoute);
-    shareRouteBtn.addEventListener('click', shareRoute);
-
-    // AI Chat Logic
-    makeDraggable(aiAssistant, () => {
+    // Report Incident Button
+    reportIncidentBtn.addEventListener('click', () => {
+        const chatInput = document.getElementById('chat-input') as HTMLInputElement;
         aiChatModal.classList.remove('hidden');
-    });
-    aiChatClose.addEventListener('click', () => {
-        aiChatModal.classList.add('hidden');
-    });
-    chatForm.addEventListener('submit', handleChatMessage);
-
-    // Language switcher
-    langSelect.addEventListener('change', (e) => {
-        currentLang = (e.target as HTMLSelectElement).value;
-        updateLanguage();
+        chatInput.value = translations[currentLang].report_incident_prompt;
+        chatInput.focus();
     });
 }
 
+function updateLanguage() {
+    const elements = document.querySelectorAll('[data-lang-key]');
+    elements.forEach(el => {
+        const key = el.getAttribute('data-lang-key') as keyof typeof translations.en;
+        el.textContent = translations[currentLang][key] || translations.en[key];
+    });
+    const placeholderElements = document.querySelectorAll('[data-lang-key-placeholder]');
+    placeholderElements.forEach(el => {
+        const key = el.getAttribute('data-lang-key-placeholder') as keyof typeof translations.en;
+        (el as HTMLInputElement).placeholder = translations[currentLang][key] || translations.en[key];
+    });
+}
+
+// --- Map Layer Functions ---
+
+function addRoadLayers() {
+    trafficLayer.clearLayers();
+    roadLayer.clearLayers();
+    trafficLayer.addData(dorGeoJson);
+    roadLayer.addData(dorGeoJson);
+    trafficLayer.setStyle(getTrafficStyle);
+    roadLayer.setStyle(getRoadStyle);
+}
+
+function getTrafficStyle(feature: any) {
+    const roadName = feature.properties.name;
+    const trafficInfo = mockTrafficData.find(d => d.roadName === roadName);
+    const color = trafficInfo?.traffic === 'heavy' ? '#e74c3c' :
+                  trafficInfo?.traffic === 'moderate' ? '#f39c12' : '#2ecc71';
+    return {
+        color: color,
+        weight: 10,
+        opacity: 0.7
+    };
+}
+
+function getRoadStyle(feature: any) {
+    const status = feature.properties.status;
+    return {
+        color: 'white',
+        weight: 4,
+        opacity: 0.8,
+        dashArray: status === 'poor' ? '5, 10' : status === 'fair' ? '10, 5' : ''
+    };
+}
+
+function onEachRoad(feature: any, layer: any) {
+    const trafficInfo = mockTrafficData.find(d => d.roadName === feature.properties.name);
+    layer.bindPopup(`
+        <h3>${feature.properties.name}</h3>
+        <p>Status: ${feature.properties.status}</p>
+        <p>Traffic: ${trafficInfo ? trafficInfo.traffic : 'N/A'}</p>
+    `);
+}
+
+function addBridgeLayer(pois: any[]) {
+    bridgeLayer.clearLayers();
+    pois.forEach(poi => {
+        const iconHtml = `<span class="material-icons" style="color: #3498db;">${poi.type === 'bridge' ? 'location_city' : 'place'}</span>`;
+        const marker = L.marker([poi.lat, poi.lng], {
+            icon: L.divIcon({
+                html: iconHtml,
+                className: 'custom-poi-icon',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            })
+        }).bindPopup(`<h3>${poi.name}</h3><p>${poi.status}</p>`);
+        (marker as any).poiId = poi.id;
+        bridgeLayer.addLayer(marker);
+    });
+}
+
+function addIncidentLayer(incidents: any[]) {
+    incidentLayer.clearLayers();
+    incidents.forEach(incident => {
+        const color = incident.type === 'closure' ? '#e74c3c' : '#f39c12';
+        const icon = incident.type === 'closure' ? 'block' : 'warning';
+        const marker = L.marker([incident.lat, incident.lng], {
+            icon: L.divIcon({
+                html: `<span class="material-icons" style="color: ${color};">${icon}</span>`,
+                className: 'custom-incident-icon',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            })
+        }).bindPopup(`<h3>${incident.name}</h3><p>${incident.status}</p>`);
+        (marker as any).incidentId = incident.id;
+        incidentLayer.addLayer(marker);
+    });
+}
+
+// --- UI Panel Functions ---
+
+function populateDisplayPanel() {
+    const content = document.getElementById('display-panel-content')!;
+    content.innerHTML = '';
+    const allItems = [...bridgePois, ...wazeIncidents];
+
+    allItems.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'info-card';
+        card.dataset.id = String(item.id);
+        
+        let icon, statusClass, typeText;
+        if (item.type === 'bridge' || item.type === 'poi') {
+            icon = item.type === 'bridge' ? 'location_city' : 'place';
+            statusClass = item.status.includes('Good') ? 'good' : 'fair';
+            typeText = item.status;
+        } else {
+            icon = item.type === 'closure' ? 'block' : 'warning';
+            statusClass = 'incident';
+            typeText = item.status;
+        }
+
+        card.innerHTML = `
+            <h3><span class="material-icons">${icon}</span> ${item.name}</h3>
+            <p>${item.type.charAt(0).toUpperCase() + item.type.slice(1)}</p>
+            <span class="card-status ${statusClass}">${typeText}</span>
+        `;
+        card.addEventListener('click', () => {
+            let targetLayer = item.type === 'bridge' || item.type === 'poi' ? bridgeLayer : incidentLayer;
+            let targetIdKey = item.type === 'bridge' || item.type === 'poi' ? 'poiId' : 'incidentId';
+            
+            targetLayer.eachLayer((layer: any) => {
+                if (layer[targetIdKey] === item.id) {
+                    map.flyTo(layer.getLatLng(), 15);
+                    layer.openPopup();
+                }
+            });
+        });
+        content.appendChild(card);
+    });
+}
+
+// --- Draggable Element Logic ---
+
+function makeDraggable(handleElement: HTMLElement, dragTarget: HTMLElement) {
+    let isDragging = false;
+    let offsetX = 0, offsetY = 0;
+    let startX = 0, startY = 0;
+
+    const onMouseDown = (e: MouseEvent) => {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        offsetX = dragTarget.offsetLeft;
+        offsetY = dragTarget.offsetTop;
+        
+        handleElement.style.cursor = 'grabbing';
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+        if (!isDragging) return;
+
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        // Mark as dragged if moved more than a few pixels
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+             handleElement.dataset.dragged = 'true';
+        }
+        
+        dragTarget.style.left = `${offsetX + dx}px`;
+        dragTarget.style.top = `${offsetY + dy}px`;
+    };
+
+    const onMouseUp = () => {
+        isDragging = false;
+        handleElement.style.cursor = 'grab';
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    return { onMouseDown };
+}
+
+// --- Routing Functions ---
+
 function findOptimalRoute() {
     clearRoute();
-
-    const fromInput = document.getElementById('from-input') as HTMLInputElement;
-    const toInput = document.getElementById('to-input') as HTMLInputElement;
+    const fromInput = (document.getElementById('from-input') as HTMLInputElement).value;
+    const toInput = (document.getElementById('to-input') as HTMLInputElement).value;
     const routeDetails = document.getElementById('route-details')!;
-    const shareRouteBtn = document.getElementById('share-route-btn')!;
-
-    const startPoi = bridgePois.find(p => p.name.toLowerCase() === fromInput.value.trim().toLowerCase());
-    const endPoi = bridgePois.find(p => p.name.toLowerCase() === toInput.value.trim().toLowerCase());
     
-    if (!startPoi || !endPoi) {
-        const errorText = translations[currentLang as keyof typeof translations]?.route_finder_error || 'Could not find start or end location.';
-        routeDetails.className = 'route-warning';
-        routeDetails.innerHTML = `
-            <span class="material-icons">error</span>
-            <span>${errorText}</span>
-        `;
+    const fromPoi = bridgePois.find(p => p.name.toLowerCase() === fromInput.toLowerCase());
+    const toPoi = bridgePois.find(p => p.name.toLowerCase() === toInput.toLowerCase());
+
+    if (!fromPoi || !toPoi) {
+        routeDetails.innerHTML = `<p style="color: var(--danger-color);">${translations[currentLang].route_finder_error}</p>`;
         return;
     }
 
-    // --- MOCK LOGIC FOR DEMONSTRATION ---
-    // In this mock, we will simulate a route that INTERSECTS with the known road closure
-    // to demonstrate the alert functionality.
-    const roadClosureIncident = wazeIncidents.find(i => i.name === "Road Closure")!;
-    
-    // Create a dynamic route based on inputs that still passes through the incident
+    // Mock route that deliberately intersects with a closure to show alert
     const routeCoords: [number, number][] = [
-        [startPoi.lat, startPoi.lng], // Start at the "From" POI
-        [roadClosureIncident.lat, roadClosureIncident.lng], // Path through the incident
-        [endPoi.lat, endPoi.lng]    // End at the "To" POI
+        [fromPoi.lat, fromPoi.lng],
+        [27.695, 85.35], // Intermediate point
+        [27.70, 85.4], // Near road closure
+        [toPoi.lat, toPoi.lng]
     ];
+    
+    currentRouteCoords = routeCoords;
 
-    // 1. Display a prominent warning in the panel
-    routeDetails.className = 'route-warning';
-    routeDetails.innerHTML = `
-        <span class="material-icons">warning</span>
-        <span><strong>Alert:</strong> Route intersects with a road closure.</span>
-    `;
-
-    // 2. Draw the route on the map with a warning (amber) color
-    const routeLine: L.Polyline = L.polyline(routeCoords, {
-        color: 'var(--warning-color)',
-        weight: 6,
-        opacity: 0.9,
-    });
-
-    routeLayer.addLayer(routeLine);
-    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
-
-    // 3. Highlight the specific incident on the map by opening its popup
-    incidentLayer.eachLayer(marker => {
-        if ((marker as any).poiId === roadClosureIncident.id) {
-            (marker as L.Marker).openPopup();
+    const routePolyline = L.polyline(routeCoords, { color: '#3498db', weight: 6 });
+    const bounds = routePolyline.getBounds();
+    
+    // Check for incidents on route
+    let incidentOnRoute = false;
+    incidentLayer.eachLayer((layer: any) => {
+        if (bounds.contains(layer.getLatLng())) {
+             const incident = wazeIncidents.find(i => i.id === layer.incidentId);
+             if (incident && incident.type === 'closure') {
+                incidentOnRoute = true;
+                routePolyline.setStyle({ color: '#f39c12' });
+                routeDetails.innerHTML = `
+                    <div class="route-warning">
+                        <span class="material-icons">warning</span>
+                        <span>Route intersects with a road closure!</span>
+                    </div>
+                `;
+                layer.openPopup();
+            }
         }
     });
-    
-    // 4. Store route for sharing and show the share button
-    currentRouteCoords = routeCoords;
-    shareRouteBtn.classList.remove('hidden');
 
-    // We do NOT close the panel, so the user can see the warning.
+    if (!incidentOnRoute) {
+        routeDetails.innerHTML = `<p style="color: var(--success-color);">Optimal route found. Avoiding heavy traffic.</p>`;
+    }
+    
+    routeLayer.addLayer(routePolyline);
+    map.flyToBounds(bounds.pad(0.1));
+    document.getElementById('share-route-btn')!.classList.remove('hidden');
 }
 
 function clearRoute() {
     routeLayer.clearLayers();
-    const routeDetails = document.getElementById('route-details')!;
-    const shareRouteBtn = document.getElementById('share-route-btn')!;
-    routeDetails.innerHTML = '';
-    routeDetails.className = ''; // Reset any warning/success styling
-    shareRouteBtn.classList.add('hidden');
     currentRouteCoords = null;
+    document.getElementById('route-details')!.innerHTML = '';
+    document.getElementById('share-route-btn')!.classList.add('hidden');
 }
 
 async function shareRoute() {
     if (!currentRouteCoords) return;
-
-    // 1. Generate URL
     const routeString = currentRouteCoords.map(c => c.join(',')).join(';');
-    const url = new URL(window.location.href);
-    url.search = `?route=${encodeURIComponent(routeString)}`;
-    const shareableLink = url.toString();
+    const url = `${window.location.origin}${window.location.pathname}?route=${encodeURIComponent(routeString)}`;
+    const shareData = {
+        title: 'Sadak Sathi Route',
+        text: 'Check out this route I planned on Sadak Sathi!',
+        url: url
+    };
+    const shareBtn = document.getElementById('share-route-btn')!;
+    const originalText = shareBtn.querySelector('span:last-child')!.textContent;
 
-    // 2. Try Web Share API
-    if (navigator.share) {
-        try {
-            await navigator.share({
-                title: 'Sadak Sathi Route',
-                text: 'Check out this route I planned on Sadak Sathi!',
-                url: shareableLink,
-            });
-        } catch (error) {
-            console.error('Error sharing:', error);
+    try {
+        if (navigator.share) {
+            await navigator.share(shareData);
+        } else {
+            throw new Error('Web Share API not available.');
         }
-    } else {
-        // 3. Fallback to clipboard
-        try {
-            await navigator.clipboard.writeText(shareableLink);
-            // Fix: Cast shareBtn to HTMLButtonElement to access the 'disabled' property.
-            const shareBtn = document.getElementById('share-route-btn')! as HTMLButtonElement;
-            const originalHTML = shareBtn.innerHTML;
-            const copiedText = translations[currentLang as keyof typeof translations]?.link_copied || 'Link Copied!';
-            shareBtn.innerHTML = `<span class="material-icons">check</span> <span>${copiedText}</span>`;
-            shareBtn.disabled = true;
-
+    } catch (err) {
+        // Fallback to clipboard
+        navigator.clipboard.writeText(url).then(() => {
+            shareBtn.querySelector('span:last-child')!.textContent = translations[currentLang].link_copied;
             setTimeout(() => {
-                shareBtn.innerHTML = originalHTML;
-                shareBtn.disabled = false;
+                shareBtn.querySelector('span:last-child')!.textContent = originalText;
             }, 2000);
-        } catch (error) {
-            console.error('Failed to copy link:', error);
-            alert('Failed to copy link.'); // Simple alert fallback
-        }
+        });
     }
 }
 
 function handleSharedRoute() {
     const params = new URLSearchParams(window.location.search);
     const routeParam = params.get('route');
-
-    if (!routeParam) return;
-
-    try {
-        const coords: [number, number][] = routeParam.split(';').map(pair => {
+    if (routeParam) {
+        const coords = routeParam.split(';').map(pair => {
             const [lat, lng] = pair.split(',').map(Number);
-            if (isNaN(lat) || isNaN(lng)) {
-                throw new Error('Invalid coordinate pair');
-            }
-            return [lat, lng];
+            return [lat, lng] as [number, number];
         });
-
-        if (coords.length < 2) return;
-
-        // Open the panel and draw the route
-        document.getElementById('route-finder-panel')!.classList.remove('hidden');
-        clearRoute(); // Clear any existing route first
-
-        const routeLine = L.polyline(coords, {
-            color: 'var(--warning-color)',
-            weight: 6,
-            opacity: 0.9,
-        });
-        
-        routeLayer.addLayer(routeLine);
-        map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
-
-        // Store coords so it can be re-shared, and show the button
         currentRouteCoords = coords;
+        const routePolyline = L.polyline(coords, { color: '#3498db', weight: 6 });
+        routeLayer.addLayer(routePolyline);
+        map.flyToBounds(routePolyline.getBounds().pad(0.1));
+        document.getElementById('route-finder-panel')!.classList.remove('hidden');
         document.getElementById('share-route-btn')!.classList.remove('hidden');
-
-    } catch (error) {
-        console.error('Failed to parse shared route:', error);
     }
 }
 
-
-function updateLanguage() {
-    const elements = document.querySelectorAll('[data-lang-key]');
-    elements.forEach(el => {
-        const key = el.getAttribute('data-lang-key') as keyof typeof translations.en;
-        const translation = translations[currentLang as keyof typeof translations]?.[key];
-        // Handle buttons with nested spans
-        const target = el.querySelector('span:last-child') || el;
-        if (translation) {
-            target.textContent = translation;
-        }
-    });
-    
-    // Handle placeholders
-    const placeholderElements = document.querySelectorAll('[data-lang-key-placeholder]');
-    placeholderElements.forEach(el => {
-        const key = el.getAttribute('data-lang-key-placeholder') as keyof typeof translations.en;
-        const translation = translations[currentLang as keyof typeof translations]?.[key];
-        if (translation) {
-            (el as HTMLInputElement).placeholder = translation;
-        }
-    });
-}
-
-function makeDraggable(element: HTMLElement, onClick?: () => void) {
-    let isDragging = false;
-    let hasMoved = false; // To distinguish a click from a drag
-    let offsetX = 0;
-    let offsetY = 0;
-
-    const onMouseDown = (e: MouseEvent | TouchEvent) => {
-        isDragging = true;
-        hasMoved = false; // Reset on each new drag attempt
-        const event = 'touches' in e ? e.touches[0] : e;
-        offsetX = event.clientX - element.getBoundingClientRect().left;
-        offsetY = event.clientY - element.getBoundingClientRect().top;
-        element.style.transition = 'none';
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-        document.addEventListener('touchmove', onMouseMove);
-        document.addEventListener('touchend', onMouseUp);
-    };
-
-    const onMouseMove = (e: MouseEvent | TouchEvent) => {
-        if (!isDragging) return;
-        hasMoved = true; // Flag that movement has occurred
-        e.preventDefault();
-        const event = 'touches' in e ? e.touches[0] : e;
-        
-        let x = event.clientX - offsetX;
-        let y = event.clientY - offsetY;
-
-        const parent = element.parentElement!;
-        x = Math.max(0, Math.min(x, parent.clientWidth - element.offsetWidth));
-        y = Math.max(0, Math.min(y, parent.clientHeight - element.offsetHeight));
-
-        element.style.left = `${x}px`;
-        element.style.top = `${y}px`;
-        element.style.bottom = 'auto';
-        element.style.right = 'auto';
-    };
-
-    const onMouseUp = () => {
-        isDragging = false;
-        // Only fire the onClick if the element wasn't dragged.
-        if (!hasMoved && onClick) {
-            onClick();
-        }
-        // Only mark as 'dragged' if the element was actually moved.
-        if (hasMoved) {
-            element.dataset.dragged = 'true';
-        }
-        element.style.transition = ''; // Restore any CSS transitions
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-        document.removeEventListener('touchmove', onMouseMove);
-        document.removeEventListener('touchend', onMouseUp);
-    };
-
-    element.addEventListener('mousedown', onMouseDown);
-    element.addEventListener('touchstart', onMouseDown);
-}
-
-function addMessageToUI(message: string, sender: 'user' | 'ai') {
-    const messagesContainer = document.getElementById('chat-messages')!;
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${sender === 'user' ? 'user-message' : 'ai-message'}`;
-    messageDiv.textContent = message;
-    messagesContainer.appendChild(messageDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight; // Auto-scroll
-}
-
-async function handleChatMessage(event: Event) {
-    event.preventDefault();
-    const chatInput = document.getElementById('chat-input') as HTMLInputElement;
-    const typingIndicator = document.getElementById('typing-indicator')!;
-    const userInput = chatInput.value.trim();
-
-    if (!userInput) return;
-
-    // 1. Display user message
-    addMessageToUI(userInput, 'user');
-    chatInput.value = '';
-
-    // 2. Show typing indicator
-    typingIndicator.classList.remove('hidden');
-
-    try {
-        // 3. Call GenAI API
-        // Fix: Simplified the 'contents' parameter for a single-turn text prompt as per Gemini API best practices.
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: userInput,
-        });
-
-        const aiResponse = response.text;
-        addMessageToUI(aiResponse, 'ai');
-
-    } catch (error) {
-        console.error("Error calling GenAI:", error);
-        addMessageToUI("Sorry, I encountered an error. Please try again.", 'ai');
-    } finally {
-        // 4. Hide typing indicator
-        typingIndicator.classList.add('hidden');
-    }
-}
+// --- Geolocation Functions ---
 
 function initGeolocation() {
     if (!navigator.geolocation) {
         console.error("Geolocation is not supported by this browser.");
         return;
     }
-
-    const onLocationFound = (position: GeolocationPosition) => {
-        const { latitude, longitude, heading } = position.coords;
-        const latLng: [number, number] = [latitude, longitude];
-
-        if (!userLocationMarker) {
-            const icon = L.divIcon({
-                className: 'user-location-icon',
-                html: `
-                    <div class="pulse"></div>
-                    <div class="dot"></div>
-                    <div class="heading"></div>
-                `,
-                iconSize: [22, 22],
-                iconAnchor: [11, 11]
-            });
-            userLocationMarker = L.marker(latLng, { icon }).addTo(map);
-            map.flyTo(latLng, 16);
-        } else {
-            userLocationMarker.setLatLng(latLng);
-        }
+    
+    const onHighAccuracyError = (err: GeolocationPositionError) => {
+        console.warn(`High accuracy geolocation failed: ${err.message}. Falling back to low accuracy.`);
+        onLocationError(err);
+        // Stop watching high accuracy and start low accuracy
+        if (highAccuracyWatchId !== null) navigator.geolocation.clearWatch(highAccuracyWatchId);
+        highAccuracyWatchId = null;
         
-        // Update heading if available
-        const markerIconElement = userLocationMarker.getElement();
-        if (markerIconElement && heading !== null) {
-            const headingElement = markerIconElement.querySelector('.heading') as HTMLElement;
-            if (headingElement) {
-                headingElement.style.transform = `translate(-50%, -100%) rotate(${heading}deg)`;
-            }
+        if (lowAccuracyWatchId === null) {
+             lowAccuracyWatchId = navigator.geolocation.watchPosition(onLocationFound, onLocationError, {
+                enableHighAccuracy: false,
+                timeout: 10000,
+                maximumAge: 0
+            });
         }
     };
 
-    const onLocationError = (error: GeolocationPositionError) => {
-        let message = "An unknown error occurred.";
-        switch (error.code) {
-            case error.PERMISSION_DENIED:
-                message = "Geolocation permission denied. Please enable location services in your browser settings to use this feature.";
-                break;
-            case error.POSITION_UNAVAILABLE:
-                message = "Location information is unavailable. This can be caused by a weak network or satellite signal.";
-                break;
-            case error.TIMEOUT:
-                message = "The request to get your location timed out. Please try again.";
-                break;
-        }
-        console.error(`Geolocation error: ${message} (Code: ${error.code})`);
-        // In a real application, this message would be displayed to the user in a more friendly way (e.g., a toast notification).
-    };
-
-    navigator.geolocation.watchPosition(onLocationFound, onLocationError, {
+    // First, try for high accuracy
+    highAccuracyWatchId = navigator.geolocation.watchPosition(onLocationFound, onHighAccuracyError, {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 0
     });
 }
 
-function populateDisplayPanel() {
-    const content = document.getElementById('display-panel-content')!;
-    content.innerHTML = '';
+function onLocationFound(position: GeolocationPosition) {
+    const { latitude, longitude, heading } = position.coords;
+    currentUserPosition = { lat: latitude, lng: longitude, heading: heading };
     
-    const allPois = [...bridgePois, ...wazeIncidents];
+    const icon = L.divIcon({
+        className: 'user-location-icon',
+        html: `<div class="pulse"></div><div class="dot"></div><div class="heading"></div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+    });
 
-    allPois.forEach(poi => {
-        const card = document.createElement('div');
-        card.className = 'info-card';
-        card.dataset.id = poi.id.toString();
+    if (!userLocationMarker) {
+        userLocationMarker = L.marker([latitude, longitude], { icon: icon }).addTo(map);
+        map.flyTo([latitude, longitude], 16);
+    } else {
+        userLocationMarker.setLatLng([latitude, longitude]);
+    }
+    
+    const headingElement = userLocationMarker.getElement()?.querySelector('.heading') as HTMLElement;
+    if (headingElement && heading !== null) {
+        headingElement.style.transform = `translate(-50%, -100%) rotate(${heading}deg)`;
+    }
+}
 
-        let icon, statusClass, statusText;
-        if ('type' in poi && poi.type === 'bridge') {
-            icon = 'location_city';
-            statusClass = 'fair';
-            statusText = 'Maintenance';
-        } else if ('type' in poi && poi.type === 'poi') {
-            icon = 'place';
-            statusClass = 'good';
-            statusText = 'Open';
-        } else {
-            icon = 'warning';
-            statusClass = 'incident';
-            statusText = 'Active';
-        }
-        
-        card.innerHTML = `
-            <h3><span class="material-icons">${icon}</span> ${poi.name}</h3>
-            ${poi.status ? `<p>${poi.status}</p>` : ''}
-            <span class="card-status ${statusClass}">${statusText}</span>
-        `;
-        
-        card.addEventListener('click', () => {
-            const allLayers = [bridgeLayer, incidentLayer];
-            for (const layerGroup of allLayers) {
-                 layerGroup.eachLayer(marker => {
-                    if ((marker as any).poiId === poi.id) {
-                        map.flyTo([poi.lat, poi.lng], 15);
-                        (marker as L.Marker).openPopup();
+function onLocationError(error: GeolocationPositionError) {
+    let message = "Could not get location: ";
+    switch (error.code) {
+        case error.PERMISSION_DENIED:
+            message += "Permission denied.";
+            break;
+        case error.POSITION_UNAVAILABLE:
+            message += "Location information is unavailable.";
+            break;
+        case error.TIMEOUT:
+            message += "The request to get user location timed out.";
+            break;
+        default:
+             message += "An unknown error occurred.";
+             break;
+    }
+    console.error(message);
+}
+
+// --- AI Chat Functions ---
+async function handleChatMessage() {
+    const input = document.getElementById('chat-input') as HTMLInputElement;
+    const message = input.value.trim();
+    if (!message) return;
+
+    addMessageToUI(message, 'user');
+    input.value = '';
+    
+    const typingIndicator = document.getElementById('typing-indicator')!;
+    typingIndicator.classList.remove('hidden');
+
+    try {
+        const tools: Tool[] = [{
+            functionDeclarations: [
+                {
+                    name: "find_poi",
+                    description: "Find a point of interest (POI) like a bridge, hospital, or landmark on the map.",
+                    parameters: {
+                        type: Type.OBJECT,
+                        properties: {
+                            poi_name: { type: Type.STRING, description: "The name of the POI to find." }
+                        },
+                        required: ["poi_name"]
                     }
-                });
+                },
+                {
+                    name: "add_incident",
+                    description: "Add a new incident like a traffic jam, accident, or road closure to the map.",
+                    parameters: {
+                        type: Type.OBJECT,
+                        properties: {
+                            incident_type: { type: Type.STRING, description: "The type of incident (e.g., 'accident', 'traffic', 'closure')." },
+                            location_name: { type: Type.STRING, description: "The name of the location where the incident occurred." }
+                        },
+                        required: ["incident_type", "location_name"]
+                    }
+                }
+            ]
+        }];
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { role: 'user', parts: [{ text: message }] },
+            config: { tools: tools },
+        });
+        
+        const call = response.candidates?.[0]?.content?.parts[0]?.functionCall;
+
+        if (call) {
+            const { name, args } = call;
+            let result: any;
+            if (name === 'find_poi') {
+                 result = findPoiOnMap(args.poi_name as string);
+            } else if (name === 'add_incident') {
+                result = addIncidentToMap(args.incident_type as string, args.location_name as string);
+            }
+            
+            // Send the result back to the model for a natural language response
+            const response2 = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: [
+                    { role: 'user', parts: [{ text: message }] },
+                    { role: 'model', parts: [response.candidates![0].content.parts[0]] },
+                    { role: 'user', parts: [{ functionResponse: { name, response: { result } } }] }
+                ],
+                config: { tools: tools }
+            });
+
+            addMessageToUI(response2.text, 'ai');
+        } else {
+            addMessageToUI(response.text, 'ai');
+        }
+
+    } catch (error) {
+        console.error("AI Error:", error);
+        addMessageToUI("Sorry, I encountered an error.", 'ai');
+    } finally {
+        typingIndicator.classList.add('hidden');
+    }
+}
+
+function addMessageToUI(text: string, sender: 'user' | 'ai') {
+    const messagesContainer = document.getElementById('chat-messages')!;
+    const messageElement = document.createElement('div');
+    messageElement.className = `message ${sender}-message`;
+    messageElement.textContent = text;
+    messagesContainer.appendChild(messageElement);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function findPoiOnMap(poiName: string) {
+    const allPois = [...bridgePois, ...wazeIncidents];
+    const poi = allPois.find(p => p.name.toLowerCase().includes(poiName.toLowerCase()));
+
+    if (poi) {
+        const targetLayer = poi.type === 'bridge' || poi.type === 'poi' ? bridgeLayer : incidentLayer;
+        const targetIdKey = poi.type === 'bridge' || poi.type === 'poi' ? 'poiId' : 'incidentId';
+        
+        targetLayer.eachLayer((layer: any) => {
+            if (layer[targetIdKey] === poi.id) {
+                map.flyTo(layer.getLatLng(), 16);
+                layer.openPopup();
             }
         });
+        return `Found ${poi.name} and centered the map on it.`;
+    } else {
+        return `Sorry, I could not find a location named "${poiName}".`;
+    }
+}
 
-        content.appendChild(card);
+function addIncidentToMap(incidentType: string, locationName: string) {
+    const location = bridgePois.find(p => p.name.toLowerCase().includes(locationName.toLowerCase()));
+    if (!location) {
+        return `Sorry, I couldn't find the location "${locationName}" to add the incident.`;
+    }
+    
+    const newIncident = {
+        id: Math.max(...wazeIncidents.map(i => i.id), ...bridgePois.map(p => p.id)) + 1,
+        name: incidentType.charAt(0).toUpperCase() + incidentType.slice(1),
+        lat: location.lat + 0.001, // Offset slightly to avoid overlap
+        lng: location.lng + 0.001,
+        type: incidentType.toLowerCase().includes('closure') ? 'closure' : 'traffic',
+        status: 'Newly Reported'
+    };
+    
+    wazeIncidents.push(newIncident);
+    addIncidentLayer(wazeIncidents);
+    populateDisplayPanel();
+    
+    return `OK, I've added a new "${incidentType}" incident at ${locationName}.`;
+}
+
+// --- Live Traffic Simulation ---
+function updateAndRefreshTraffic() {
+    // Randomly change traffic conditions for demonstration
+    mockTrafficData.forEach(road => {
+        const rand = Math.random();
+        if (rand < 0.33) road.traffic = 'clear';
+        else if (rand < 0.66) road.traffic = 'moderate';
+        else road.traffic = 'heavy';
     });
+    
+    // Refresh the style of the traffic layer
+    trafficLayer.setStyle(getTrafficStyle);
 }
