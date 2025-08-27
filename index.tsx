@@ -299,7 +299,12 @@ function initUI() {
         }
         aiAssistantBtn.dataset.dragged = 'false';
     });
-    aiChatCloseBtn.addEventListener('click', () => aiChatModal.classList.add('hidden'));
+    aiChatCloseBtn.addEventListener('click', () => {
+        aiChatModal.classList.add('hidden');
+        // Ensure map interaction is re-enabled when modal is closed
+        map.dragging.enable();
+        map.scrollWheelZoom.enable();
+    });
     chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
         handleChatMessage();
@@ -473,6 +478,12 @@ function makeDraggable(handleElement: HTMLElement, dragTarget: HTMLElement) {
         offsetX = dragTarget.offsetLeft;
         offsetY = dragTarget.offsetTop;
         
+        // Prevent map interaction while dragging the modal
+        if (handleElement.id === 'ai-chat-header') {
+            map.dragging.disable();
+            map.scrollWheelZoom.disable();
+        }
+
         handleElement.style.cursor = 'grabbing';
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
@@ -495,6 +506,13 @@ function makeDraggable(handleElement: HTMLElement, dragTarget: HTMLElement) {
 
     const onMouseUp = () => {
         isDragging = false;
+        
+        // Re-enable map interaction
+        if (handleElement.id === 'ai-chat-header') {
+            map.dragging.enable();
+            map.scrollWheelZoom.enable();
+        }
+
         handleElement.style.cursor = 'grab';
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
