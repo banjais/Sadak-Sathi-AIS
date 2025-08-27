@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sadak Sathi - Your Road Companion</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.15.0"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="app-container" data-theme="light">
+        <!-- Map container -->
+        <div id="map"></div>
+
+        <!-- Header -->
+        <header id="app-header">
+            <div class="app-title">
+                <h1>Sadak Sathi</h1>
+                <p>Your Road Companion</p>
+            </div>
+            <div class="header-controls">
+                <div class="language-switcher">
+                    <span class="material-icons">language</span>
+                    <select id="language-select" aria-label="Select language">
+                        <option value="en">EN</option>
+                        <option value="np">NP</option>
+                        <option value="hi">HI</option>
+                    </select>
+                </div>
+                <button id="theme-toggle" class="icon-button" aria-label="Toggle dark mode">
+                    <span class="material-icons">light_mode</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Settings Panel (was Left Panel) -->
+        <aside id="settings-panel">
+            <button class="menu-item" aria-label="Profile">
+                <span class="material-icons">person</span>
+                <span class="label" data-lang-key="menu_profile">Profile</span>
+            </button>
+             <!-- More settings can be added here -->
+        </aside>
+
+        <!-- Layers Panel (Bottom Right) -->
+        <div id="layers-panel">
+            <h2 data-lang-key="layers">Layers</h2>
+            <div class="layer-toggle">
+                <input type="checkbox" id="toggle-roads" checked>
+                <label for="toggle-roads" data-lang-key="roads">Roads</label>
+            </div>
+            <div class="layer-toggle">
+                <input type="checkbox" id="toggle-bridges" checked>
+                <label for="toggle-bridges" data-lang-key="bridges">Bridges & POIs</label>
+            </div>
+            <div class="layer-toggle">
+                <input type="checkbox" id="toggle-incidents" checked>
+                <label for="toggle-incidents" data-lang-key="incidents">Incidents</label>
+            </div>
+        </div>
+        
+        <!-- Onboard/Display Panel -->
+        <section id="display-panel" class="collapsed">
+             <div id="display-panel-header" class="panel-header">
+                <h2 data-lang-key="display_panel_title">Nearby Information</h2>
+                <span class="material-icons panel-toggle-icon">expand_less</span>
+            </div>
+            <div id="display-panel-content">
+                <!-- Cards will be injected here by JS -->
+            </div>
+        </section>
+
+        <!-- Driver Widgets Panel -->
+        <div id="driver-widgets-panel">
+            <div class="widget-item">
+                <span class="material-icons">explore</span>
+                <div class="widget-data">
+                    <span class="value">N</span>
+                    <span class="label">Compass</span>
+                </div>
+            </div>
+            <div class="widget-item">
+                <span class="material-icons">speed</span>
+                <div class="widget-data">
+                    <span class="value">60</span>
+                    <span class="label">km/h</span>
+                </div>
+            </div>
+            <div class="widget-item">
+                <span class="material-icons">thermostat</span>
+                <div class="widget-data">
+                    <span class="value">24°</span>
+                    <span class="label">Temp</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Route Finder Trigger Button -->
+        <button id="route-finder-trigger">
+            <span class="material-icons">directions</span>
+            <span data-lang-key="route_finder">Route Finder</span>
+        </button>
+        
+        <!-- Route Finder Panel (Modal) -->
+        <div id="route-finder-panel" class="hidden">
+            <div class="panel-content">
+                <div class="panel-header">
+                    <h2 data-lang-key="route_finder">Route Finder</h2>
+                    <button id="route-finder-close" class="icon-button" aria-label="Close">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="route-inputs">
+                    <div class="input-group">
+                        <label for="from-input">From</label>
+                        <input type="text" id="from-input" placeholder="Start location" value="Maitighar Mandala">
+                    </div>
+                    <div class="input-group">
+                        <label for="to-input">To</label>
+                        <input type="text" id="to-input" placeholder="Destination" value="Thapathali Bridge">
+                    </div>
+                </div>
+                <div id="route-details"></div>
+                <div class="route-actions">
+                    <button id="find-route-btn">Find Optimal Route</button>
+                    <button id="clear-route-btn" class="secondary">Clear Route</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- AI Assistant Button -->
+        <button id="ai-assistant" class="icon-button" aria-label="AI Assistant">
+            <span class="material-icons">mic</span>
+        </button>
+
+        <!-- Bottom Menu -->
+        <nav id="bottom-menu">
+            <button id="hamburger-menu" class="menu-item" aria-label="Open settings">
+                 <span class="blinking-dot"></span>
+                <span class="material-icons">menu</span>
+            </button>
+            <button class="menu-item" aria-label="Passenger Mode">
+                <span class="material-icons">people</span>
+            </button>
+             <button class="menu-item active" aria-label="Onboard Mode">
+                <span class="material-icons">navigation</span>
+            </button>
+        </nav>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script type="module" src="index.tsx"></script>
+</body>
+</html>

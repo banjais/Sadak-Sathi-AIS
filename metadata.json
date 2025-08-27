@@ -1,0 +1,7 @@
+{
+  "name": "Sadak-Sathi-AIstudio",
+  "description": "Your Road Compain",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
