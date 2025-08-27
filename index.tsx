@@ -86,7 +86,7 @@ let mockTrafficData = [
 ];
 
 // Translations
-const translations = {
+const translations: { [key: string]: any } = {
     en: {
         layers: 'Layers',
         roads: 'Roads',
@@ -105,7 +105,7 @@ const translations = {
         menu_profile: 'Profile',
         ai_chat_title: 'AI Assistant',
         ai_chat_placeholder: 'Ask to find a place or report an incident...',
-        report_incident_prompt: 'I want to report an incident at ',
+        report_incident_prompt: 'I want to report an incident here: ',
     },
     np: {
         layers: 'तहहरू',
@@ -125,7 +125,7 @@ const translations = {
         menu_profile: 'प्रोफाइल',
         ai_chat_title: 'एआई सहायक',
         ai_chat_placeholder: 'ठाउँ खोज्न वा घटना रिपोर्ट गर्न सोध्नुहोस्...',
-        report_incident_prompt: 'म घटना रिपोर्ट गर्न चाहन्छु ',
+        report_incident_prompt: 'म यहाँ एक घटना रिपोर्ट गर्न चाहन्छु: ',
     },
     hi: {
         layers: 'परतें',
@@ -145,7 +145,7 @@ const translations = {
         menu_profile: 'प्रोफ़ाइल',
         ai_chat_title: 'एआई सहायक',
         ai_chat_placeholder: 'कोई स्थान खोजने या घटना की रिपोर्ट करने के लिए कहें...',
-        report_incident_prompt: 'मैं एक घटना की रिपोर्ट करना चाहता हूं ',
+        report_incident_prompt: 'मैं यहां एक घटना की रिपोर्ट करना चाहता हूं: ',
     }
 };
 
@@ -719,6 +719,35 @@ async function handleChatMessage() {
     typingIndicator.classList.remove('hidden');
 
     try {
+        // 1. Gather detailed map context
+        const bounds = map.getBounds();
+        const mapCenter = map.getCenter();
+        const mapZoom = map.getZoom();
+
+        const visiblePois = bridgePois.filter(poi => bounds.contains(L.latLng(poi.lat, poi.lng)));
+        const visibleIncidents = wazeIncidents.filter(incident => bounds.contains(L.latLng(incident.lat, incident.lng)));
+
+        let contextString = `Current map context:\n- Map Center: ${mapCenter.lat.toFixed(4)}, ${mapCenter.lng.toFixed(4)}\n- Zoom Level: ${mapZoom}\n`;
+
+        if (visiblePois.length > 0) {
+            contextString += "- Visible POIs:\n";
+            visiblePois.forEach(poi => {
+                contextString += `  - Name: ${poi.name} (Type: ${poi.type}, Status: ${poi.status})\n`;
+            });
+        } else {
+            contextString += "- No POIs are visible.\n";
+        }
+
+        if (visibleIncidents.length > 0) {
+            contextString += "- Visible Incidents:\n";
+            visibleIncidents.forEach(incident => {
+                contextString += `  - Name: ${incident.name} (Type: ${incident.type}, Status: ${incident.status})\n`;
+            });
+        } else {
+            contextString += "- No incidents are visible.\n";
+        }
+
+
         const tools: Tool[] = [{
             functionDeclarations: [
                 {
@@ -734,14 +763,14 @@ async function handleChatMessage() {
                 },
                 {
                     name: "add_incident",
-                    description: "Add a new incident like a traffic jam, accident, or road closure to the map.",
+                    description: "Add a new incident like a traffic jam, accident, or road closure to the map. If the user says 'here' or doesn't specify a location, the location_name can be omitted, and the map center or user's GPS location will be used.",
                     parameters: {
                         type: Type.OBJECT,
                         properties: {
                             incident_type: { type: Type.STRING, description: "The type of incident (e.g., 'accident', 'traffic', 'closure')." },
-                            location_name: { type: Type.STRING, description: "The name of the location where the incident occurred." }
+                            location_name: { type: Type.STRING, description: "The name of the location where the incident occurred. Omit if the user says 'here' or similar." }
                         },
-                        required: ["incident_type", "location_name"]
+                        required: ["incident_type"]
                     }
                 }
             ]
@@ -750,7 +779,10 @@ async function handleChatMessage() {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: { role: 'user', parts: [{ text: message }] },
-            config: { tools: tools },
+            config: { 
+                tools: tools,
+                systemInstruction: contextString // Pass context here
+            },
         });
         
         const call = response.candidates?.[0]?.content?.parts[0]?.functionCall;
@@ -761,7 +793,7 @@ async function handleChatMessage() {
             if (name === 'find_poi') {
                  result = findPoiOnMap(args.poi_name as string);
             } else if (name === 'add_incident') {
-                result = addIncidentToMap(args.incident_type as string, args.location_name as string);
+                result = addIncidentToMap(args.incident_type as string, args.location_name as string | undefined);
             }
             
             // Send the result back to the model for a natural language response
@@ -817,17 +849,40 @@ function findPoiOnMap(poiName: string) {
     }
 }
 
-function addIncidentToMap(incidentType: string, locationName: string) {
-    const location = bridgePois.find(p => p.name.toLowerCase().includes(locationName.toLowerCase()));
-    if (!location) {
-        return `Sorry, I couldn't find the location "${locationName}" to add the incident.`;
+function addIncidentToMap(incidentType: string, locationName?: string) {
+    let incidentLat: number;
+    let incidentLng: number;
+    let finalLocationName: string;
+
+    if (locationName) {
+        const location = bridgePois.find(p => p.name.toLowerCase().includes(locationName.toLowerCase()));
+        if (!location) {
+            return `Sorry, I couldn't find the location "${locationName}" to add the incident.`;
+        }
+        incidentLat = location.lat + 0.001; // Offset slightly to avoid overlap
+        incidentLng = location.lng + 0.001;
+        finalLocationName = `"${locationName}"`;
+    } else {
+        // No location provided, use context
+        if (currentUserPosition) {
+            // Prioritize user's GPS
+            incidentLat = currentUserPosition.lat;
+            incidentLng = currentUserPosition.lng;
+            finalLocationName = "your current location";
+        } else {
+            // Fallback to map center
+            const center = map.getCenter();
+            incidentLat = center.lat;
+            incidentLng = center.lng;
+            finalLocationName = "the center of the map";
+        }
     }
     
     const newIncident = {
         id: Math.max(...wazeIncidents.map(i => i.id), ...bridgePois.map(p => p.id)) + 1,
         name: incidentType.charAt(0).toUpperCase() + incidentType.slice(1),
-        lat: location.lat + 0.001, // Offset slightly to avoid overlap
-        lng: location.lng + 0.001,
+        lat: incidentLat,
+        lng: incidentLng,
         type: incidentType.toLowerCase().includes('closure') ? 'closure' : 'traffic',
         status: 'Newly Reported'
     };
@@ -836,8 +891,9 @@ function addIncidentToMap(incidentType: string, locationName: string) {
     addIncidentLayer(wazeIncidents);
     populateDisplayPanel();
     
-    return `OK, I've added a new "${incidentType}" incident at ${locationName}.`;
+    return `OK, I've added a new "${incidentType}" incident at ${finalLocationName}.`;
 }
+
 
 // --- Live Traffic Simulation ---
 function updateAndRefreshTraffic() {
