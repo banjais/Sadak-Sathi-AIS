@@ -1,6 +1,6 @@
 {
   "name": "Sadak-Sathi-AIstudio",
-  "description": "Your Road Compain",
+  "description": "Your Road Companion",
   "requestFramePermissions": [
     "geolocation"
   ]

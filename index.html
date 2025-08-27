@@ -68,6 +68,11 @@
             </div>
         </div>
         
+        <!-- Center Location Button -->
+        <button id="center-location-btn" class="icon-button" aria-label="Center on my location">
+            <span class="material-icons">my_location</span>
+        </button>
+
         <!-- Onboard/Display Panel -->
         <section id="display-panel" class="collapsed">
              <div id="display-panel-header" class="panel-header">
@@ -131,8 +136,12 @@
                 </div>
                 <div id="route-details"></div>
                 <div class="route-actions">
-                    <button id="find-route-btn">Find Optimal Route</button>
-                    <button id="clear-route-btn" class="secondary">Clear Route</button>
+                    <button id="find-route-btn" data-lang-key="find_route_btn">Find Optimal Route</button>
+                    <button id="share-route-btn" class="secondary hidden">
+                        <span class="material-icons">share</span>
+                        <span data-lang-key="share_route">Share Route</span>
+                    </button>
+                    <button id="clear-route-btn" class="secondary" data-lang-key="clear_route_btn">Clear Route</button>
                 </div>
             </div>
         </div>
@@ -142,6 +151,33 @@
         <button id="ai-assistant" class="icon-button" aria-label="AI Assistant">
             <span class="material-icons">mic</span>
         </button>
+        
+        <!-- AI Chat Modal -->
+        <div id="ai-chat-modal" class="hidden">
+            <div class="chat-panel">
+                <div class="panel-header" id="ai-chat-header">
+                    <h2 data-lang-key="ai_chat_title">AI Assistant</h2>
+                    <button id="ai-chat-close" class="icon-button" aria-label="Close Chat">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <!-- Messages will be injected here -->
+                </div>
+                <div class="chat-input-area">
+                    <div class="typing-indicator hidden" id="typing-indicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <form id="chat-form">
+                        <input type="text" id="chat-input" data-lang-key-placeholder="ai_chat_placeholder" placeholder="Type a message..." autocomplete="off">
+                        <button type="submit" class="icon-button" aria-label="Send Message">
+                            <span class="material-icons">send</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
 
         <!-- Bottom Menu -->
         <nav id="bottom-menu">

@@ -16,6 +16,9 @@ declare namespace L {
 }
 declare var L: any;
 
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+
 // Since this is a demo, we will use mock data.
 // In a real application, this would come from an API.
 
@@ -87,10 +90,17 @@ const translations = {
         incidents: 'Incidents',
         display_panel_title: 'Nearby Information',
         route_finder: 'Route Finder',
+        find_route_btn: 'Find Optimal Route',
+        clear_route_btn: 'Clear Route',
+        share_route: 'Share Route',
+        link_copied: 'Link Copied!',
+        route_finder_error: 'Could not find start or end location. Please use valid POI names.',
         menu_map: 'Map',
         menu_alerts: 'Alerts',
         menu_driver: 'Driver',
         menu_profile: 'Profile',
+        ai_chat_title: 'AI Assistant',
+        ai_chat_placeholder: 'Type a message...',
     },
     np: {
         layers: 'तहहरू',
@@ -99,10 +109,17 @@ const translations = {
         incidents: 'घटनाहरू',
         display_panel_title: 'नजिकैको जानकारी',
         route_finder: 'मार्ग खोज्नुहोस्',
+        find_route_btn: 'उत्तम मार्ग खोज्नुहोस्',
+        clear_route_btn: 'मार्ग हटाउनुहोस्',
+        share_route: 'मार्ग साझा गर्नुहोस्',
+        link_copied: 'लिङ्क प्रतिलिपि भयो!',
+        route_finder_error: 'सुरु वा अन्त्य स्थान फेला पार्न सकिएन। कृपया मान्य POI नामहरू प्रयोग गर्नुहोस्।',
         menu_map: 'नक्सा',
         menu_alerts: 'सतर्कता',
         menu_driver: 'चालक',
         menu_profile: 'प्रोफाइल',
+        ai_chat_title: 'एआई सहायक',
+        ai_chat_placeholder: 'सन्देश टाइप गर्नुहोस्...',
     },
     hi: {
         layers: 'परतें',
@@ -111,10 +128,17 @@ const translations = {
         incidents: 'घटनाएं',
         display_panel_title: 'आस-पास की जानकारी',
         route_finder: 'मार्ग खोजें',
+        find_route_btn: 'इष्टतम मार्ग खोजें',
+        clear_route_btn: 'मार्ग साफ़ करें',
+        share_route: 'मार्ग साझा करें',
+        link_copied: 'लिंक कॉपी किया गया!',
+        route_finder_error: 'प्रारंभ या अंत स्थान नहीं मिला। कृपया मान्य POI नामों का उपयोग करें।',
         menu_map: 'नक्शा',
         menu_alerts: 'चेतावनी',
         menu_driver: 'चालक',
         menu_profile: 'प्रोफ़ाइल',
+        ai_chat_title: 'एआई सहायक',
+        ai_chat_placeholder: 'एक संदेश टाइप करें...',
     }
 };
 
@@ -126,10 +150,12 @@ let incidentLayer: L.FeatureGroup;
 let routeLayer: L.FeatureGroup;
 let userLocationMarker: L.Marker | null = null;
 let currentLang = 'en';
+let currentRouteCoords: [number, number][] | null = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     initUI();
+    handleSharedRoute();
     populateDisplayPanel();
     updateLanguage();
     initGeolocation();
@@ -242,6 +268,7 @@ function initUI() {
     const displayPanel = document.getElementById('display-panel')!;
     const displayPanelHeader = document.getElementById('display-panel-header')!;
     const blinkingDot = hamburgerMenu.querySelector('.blinking-dot')!;
+    const centerLocationBtn = document.getElementById('center-location-btn')!;
 
     // Route Finder UI Elements
     const routeFinderTrigger = document.getElementById('route-finder-trigger')!;
@@ -249,6 +276,12 @@ function initUI() {
     const routeFinderClose = document.getElementById('route-finder-close')!;
     const findRouteBtn = document.getElementById('find-route-btn')!;
     const clearRouteBtn = document.getElementById('clear-route-btn')!;
+    const shareRouteBtn = document.getElementById('share-route-btn')!;
+    
+    // AI Chat UI Elements
+    const aiChatModal = document.getElementById('ai-chat-modal')!;
+    const aiChatClose = document.getElementById('ai-chat-close')!;
+    const chatForm = document.getElementById('chat-form')!;
 
     // Theme toggle
     themeToggle.addEventListener('click', () => {
@@ -280,6 +313,10 @@ function initUI() {
     // Display Panel toggle
     displayPanelHeader.addEventListener('click', () => {
         displayPanel.classList.toggle('collapsed');
+        // After the animation, invalidate the map size to fix rendering issues
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 400); // Should match the transition duration in CSS
     });
 
     // Layer toggles
@@ -301,6 +338,13 @@ function initUI() {
         else map.removeLayer(incidentLayer);
     });
     
+    // Center on location button
+    centerLocationBtn.addEventListener('click', () => {
+        if (userLocationMarker) {
+            map.flyTo(userLocationMarker.getLatLng(), 16);
+        }
+    });
+
     // Route Finder Panel Logic
     routeFinderTrigger.addEventListener('click', () => {
         routeFinderPanel.classList.remove('hidden');
@@ -310,11 +354,17 @@ function initUI() {
     });
     findRouteBtn.addEventListener('click', findOptimalRoute);
     clearRouteBtn.addEventListener('click', clearRoute);
+    shareRouteBtn.addEventListener('click', shareRoute);
 
+    // AI Chat Logic
+    makeDraggable(aiAssistant, () => {
+        aiChatModal.classList.remove('hidden');
+    });
+    aiChatClose.addEventListener('click', () => {
+        aiChatModal.classList.add('hidden');
+    });
+    chatForm.addEventListener('submit', handleChatMessage);
 
-    // Draggable AI button
-    makeDraggable(aiAssistant);
-    
     // Language switcher
     langSelect.addEventListener('change', (e) => {
         currentLang = (e.target as HTMLSelectElement).value;
@@ -325,18 +375,34 @@ function initUI() {
 function findOptimalRoute() {
     clearRoute();
 
+    const fromInput = document.getElementById('from-input') as HTMLInputElement;
+    const toInput = document.getElementById('to-input') as HTMLInputElement;
+    const routeDetails = document.getElementById('route-details')!;
+    const shareRouteBtn = document.getElementById('share-route-btn')!;
+
+    const startPoi = bridgePois.find(p => p.name.toLowerCase() === fromInput.value.trim().toLowerCase());
+    const endPoi = bridgePois.find(p => p.name.toLowerCase() === toInput.value.trim().toLowerCase());
+    
+    if (!startPoi || !endPoi) {
+        const errorText = translations[currentLang as keyof typeof translations]?.route_finder_error || 'Could not find start or end location.';
+        routeDetails.className = 'route-warning';
+        routeDetails.innerHTML = `
+            <span class="material-icons">error</span>
+            <span>${errorText}</span>
+        `;
+        return;
+    }
+
     // --- MOCK LOGIC FOR DEMONSTRATION ---
     // In this mock, we will simulate a route that INTERSECTS with the known road closure
     // to demonstrate the alert functionality.
     const roadClosureIncident = wazeIncidents.find(i => i.name === "Road Closure")!;
-    const routeDetails = document.getElementById('route-details')!;
-
-    // A real app would get a route from a service and check for incidents.
-    // Here, we hardcode the route to pass through the incident for the demo.
-    const routeCoords = [
-        [27.7172, 85.3240], // Start near app center
+    
+    // Create a dynamic route based on inputs that still passes through the incident
+    const routeCoords: [number, number][] = [
+        [startPoi.lat, startPoi.lng], // Start at the "From" POI
         [roadClosureIncident.lat, roadClosureIncident.lng], // Path through the incident
-        [27.691, 85.316]    // End at Thapathali Bridge
+        [endPoi.lat, endPoi.lng]    // End at the "To" POI
     ];
 
     // 1. Display a prominent warning in the panel
@@ -362,6 +428,10 @@ function findOptimalRoute() {
             (marker as L.Marker).openPopup();
         }
     });
+    
+    // 4. Store route for sharing and show the share button
+    currentRouteCoords = routeCoords;
+    shareRouteBtn.classList.remove('hidden');
 
     // We do NOT close the panel, so the user can see the warning.
 }
@@ -369,8 +439,92 @@ function findOptimalRoute() {
 function clearRoute() {
     routeLayer.clearLayers();
     const routeDetails = document.getElementById('route-details')!;
+    const shareRouteBtn = document.getElementById('share-route-btn')!;
     routeDetails.innerHTML = '';
     routeDetails.className = ''; // Reset any warning/success styling
+    shareRouteBtn.classList.add('hidden');
+    currentRouteCoords = null;
+}
+
+async function shareRoute() {
+    if (!currentRouteCoords) return;
+
+    // 1. Generate URL
+    const routeString = currentRouteCoords.map(c => c.join(',')).join(';');
+    const url = new URL(window.location.href);
+    url.search = `?route=${encodeURIComponent(routeString)}`;
+    const shareableLink = url.toString();
+
+    // 2. Try Web Share API
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'Sadak Sathi Route',
+                text: 'Check out this route I planned on Sadak Sathi!',
+                url: shareableLink,
+            });
+        } catch (error) {
+            console.error('Error sharing:', error);
+        }
+    } else {
+        // 3. Fallback to clipboard
+        try {
+            await navigator.clipboard.writeText(shareableLink);
+            // Fix: Cast shareBtn to HTMLButtonElement to access the 'disabled' property.
+            const shareBtn = document.getElementById('share-route-btn')! as HTMLButtonElement;
+            const originalHTML = shareBtn.innerHTML;
+            const copiedText = translations[currentLang as keyof typeof translations]?.link_copied || 'Link Copied!';
+            shareBtn.innerHTML = `<span class="material-icons">check</span> <span>${copiedText}</span>`;
+            shareBtn.disabled = true;
+
+            setTimeout(() => {
+                shareBtn.innerHTML = originalHTML;
+                shareBtn.disabled = false;
+            }, 2000);
+        } catch (error) {
+            console.error('Failed to copy link:', error);
+            alert('Failed to copy link.'); // Simple alert fallback
+        }
+    }
+}
+
+function handleSharedRoute() {
+    const params = new URLSearchParams(window.location.search);
+    const routeParam = params.get('route');
+
+    if (!routeParam) return;
+
+    try {
+        const coords: [number, number][] = routeParam.split(';').map(pair => {
+            const [lat, lng] = pair.split(',').map(Number);
+            if (isNaN(lat) || isNaN(lng)) {
+                throw new Error('Invalid coordinate pair');
+            }
+            return [lat, lng];
+        });
+
+        if (coords.length < 2) return;
+
+        // Open the panel and draw the route
+        document.getElementById('route-finder-panel')!.classList.remove('hidden');
+        clearRoute(); // Clear any existing route first
+
+        const routeLine = L.polyline(coords, {
+            color: 'var(--warning-color)',
+            weight: 6,
+            opacity: 0.9,
+        });
+        
+        routeLayer.addLayer(routeLine);
+        map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+
+        // Store coords so it can be re-shared, and show the button
+        currentRouteCoords = coords;
+        document.getElementById('share-route-btn')!.classList.remove('hidden');
+
+    } catch (error) {
+        console.error('Failed to parse shared route:', error);
+    }
 }
 
 
@@ -379,13 +533,25 @@ function updateLanguage() {
     elements.forEach(el => {
         const key = el.getAttribute('data-lang-key') as keyof typeof translations.en;
         const translation = translations[currentLang as keyof typeof translations]?.[key];
+        // Handle buttons with nested spans
+        const target = el.querySelector('span:last-child') || el;
         if (translation) {
-            el.textContent = translation;
+            target.textContent = translation;
+        }
+    });
+    
+    // Handle placeholders
+    const placeholderElements = document.querySelectorAll('[data-lang-key-placeholder]');
+    placeholderElements.forEach(el => {
+        const key = el.getAttribute('data-lang-key-placeholder') as keyof typeof translations.en;
+        const translation = translations[currentLang as keyof typeof translations]?.[key];
+        if (translation) {
+            (el as HTMLInputElement).placeholder = translation;
         }
     });
 }
 
-function makeDraggable(element: HTMLElement) {
+function makeDraggable(element: HTMLElement, onClick?: () => void) {
     let isDragging = false;
     let hasMoved = false; // To distinguish a click from a drag
     let offsetX = 0;
@@ -425,6 +591,10 @@ function makeDraggable(element: HTMLElement) {
 
     const onMouseUp = () => {
         isDragging = false;
+        // Only fire the onClick if the element wasn't dragged.
+        if (!hasMoved && onClick) {
+            onClick();
+        }
         // Only mark as 'dragged' if the element was actually moved.
         if (hasMoved) {
             element.dataset.dragged = 'true';
@@ -438,6 +608,50 @@ function makeDraggable(element: HTMLElement) {
 
     element.addEventListener('mousedown', onMouseDown);
     element.addEventListener('touchstart', onMouseDown);
+}
+
+function addMessageToUI(message: string, sender: 'user' | 'ai') {
+    const messagesContainer = document.getElementById('chat-messages')!;
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender === 'user' ? 'user-message' : 'ai-message'}`;
+    messageDiv.textContent = message;
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight; // Auto-scroll
+}
+
+async function handleChatMessage(event: Event) {
+    event.preventDefault();
+    const chatInput = document.getElementById('chat-input') as HTMLInputElement;
+    const typingIndicator = document.getElementById('typing-indicator')!;
+    const userInput = chatInput.value.trim();
+
+    if (!userInput) return;
+
+    // 1. Display user message
+    addMessageToUI(userInput, 'user');
+    chatInput.value = '';
+
+    // 2. Show typing indicator
+    typingIndicator.classList.remove('hidden');
+
+    try {
+        // 3. Call GenAI API
+        // Fix: Simplified the 'contents' parameter for a single-turn text prompt as per Gemini API best practices.
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: userInput,
+        });
+
+        const aiResponse = response.text;
+        addMessageToUI(aiResponse, 'ai');
+
+    } catch (error) {
+        console.error("Error calling GenAI:", error);
+        addMessageToUI("Sorry, I encountered an error. Please try again.", 'ai');
+    } finally {
+        // 4. Hide typing indicator
+        typingIndicator.classList.add('hidden');
+    }
 }
 
 function initGeolocation() {
@@ -478,13 +692,25 @@ function initGeolocation() {
     };
 
     const onLocationError = (error: GeolocationPositionError) => {
-        console.error(`Geolocation error: ${error.message}`);
-        // Optionally, inform the user that location could not be fetched.
+        let message = "An unknown error occurred.";
+        switch (error.code) {
+            case error.PERMISSION_DENIED:
+                message = "Geolocation permission denied. Please enable location services in your browser settings to use this feature.";
+                break;
+            case error.POSITION_UNAVAILABLE:
+                message = "Location information is unavailable. This can be caused by a weak network or satellite signal.";
+                break;
+            case error.TIMEOUT:
+                message = "The request to get your location timed out. Please try again.";
+                break;
+        }
+        console.error(`Geolocation error: ${message} (Code: ${error.code})`);
+        // In a real application, this message would be displayed to the user in a more friendly way (e.g., a toast notification).
     };
 
     navigator.geolocation.watchPosition(onLocationFound, onLocationError, {
         enableHighAccuracy: true,
-        timeout: 5000,
+        timeout: 10000,
         maximumAge: 0
     });
 }
