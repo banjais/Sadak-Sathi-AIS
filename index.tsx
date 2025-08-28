@@ -343,13 +343,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const allItems = [...allPois, ...allIncidents];
         const categories = ['All', ...Array.from(new Set(allItems.map(item => item.category)))];
+        
+        // Map categories to Material Icons
+        const categoryToIconMap: { [key: string]: string } = {
+            'All': 'apps',
+            'landmark': 'account_balance',
+            'bridge': 'commit',
+            'hospital': 'local_hospital',
+            'coffee shop': 'local_cafe',
+            'shopping': 'shopping_cart',
+            'traffic': 'traffic',
+            'construction': 'construction'
+        };
 
         categories.forEach(category => {
             const button = document.createElement('button');
+            const iconName = categoryToIconMap[category] || 'place'; // Default icon
+            const categoryLabel = category.charAt(0).toUpperCase() + category.slice(1);
+
             button.className = 'filter-btn';
-            // Capitalize first letter
-            button.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+            button.innerHTML = `<span class="material-icons">${iconName}</span>`;
             button.dataset.category = category;
+            button.title = categoryLabel; // Tooltip for accessibility
+
             if (category === 'All') {
                 button.classList.add('active');
             }
@@ -380,7 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'info-card';
             card.innerHTML = `
                 <h3>${item.name}</h3>
-                <p>Category: ${item.category}</p>
+                <p>${item.category}</p>
                 <span class="card-status ${item.status.toLowerCase().replace(/\s/g, '-')}">${item.status}</span>
             `;
             card.onclick = () => {
