@@ -25,12 +25,23 @@
         <!-- Header -->
         <header id="app-header">
             <div class="header-left">
-                 <div id="gps-status-indicator" title="GPS Status: Searching..."></div>
                 <div class="app-title">
                     <h1>Sadak Sathi</h1>
+                    <p class="app-subtitle">Your Smart Road Companion</p>
                 </div>
             </div>
             <div class="header-right">
+                <div id="user-info-widget">
+                    <div id="weather-widget">
+                        <span class="material-icons" id="weather-icon">sunny</span>
+                        <span id="weather-temp">25°C</span>
+                    </div>
+                    <div id="location-widget">
+                        <span id="location-name">Kathmandu</span>
+                        <span id="location-coords">27.70, 85.32</span>
+                    </div>
+                </div>
+                <div id="gps-status-indicator" title="GPS Status: Searching..."></div>
                 <button id="profile-btn" class="icon-button" aria-label="Profile">
                     <span class="material-icons">person</span>
                 </button>

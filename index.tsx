@@ -231,7 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const blinkingDot = hamburgerMenu.querySelector('.blinking-dot') as HTMLElement;
     const aiAssistantBtn = document.getElementById('ai-assistant') as HTMLButtonElement;
     const aiChatModal = document.getElementById('ai-chat-modal') as HTMLElement;
-    const aiChatCloseBtn = document.getElementById('ai-chat-close') as HTMLButtonElement;
     const voiceResponseToggle = document.getElementById('toggle-voice-response') as HTMLInputElement;
 
     const updateLanguage = (lang: string) => {
@@ -261,6 +260,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setupAIChat();
         simulateGpsStatus();
         setupCockpitWidgets();
+        simulateWeather();
+        simulateUserLocation();
 
         // Restore saved language or default to 'en'
         const savedLang = localStorage.getItem('appLanguage') || 'en';
@@ -394,40 +395,135 @@ document.addEventListener('DOMContentLoaded', () => {
         const chatInput = document.getElementById('chat-input') as HTMLInputElement;
         const chatMessagesContainer = document.getElementById('chat-messages') as HTMLElement;
         const typingIndicator = document.getElementById('typing-indicator') as HTMLElement;
+        const aiChatCloseBtn = document.getElementById('ai-chat-close') as HTMLButtonElement;
+
 
         const addMessageToChat = (message: string, sender: 'user' | 'ai') => {
             const messageEl = document.createElement('div');
             messageEl.classList.add('message', sender === 'ai' ? 'ai-message' : 'user-message');
-            messageEl.innerHTML = `<p>${message}</p>`;
+            // A simple way to render potential markdown from the AI for better readability
+            const processedMessage = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+            messageEl.innerHTML = `<p>${processedMessage}</p>`;
             chatMessagesContainer.appendChild(messageEl);
             chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
 
             if (sender === 'ai') {
-                speakText(message);
+                 // Don't speak intermediate messages like "Searching..."
+                if (!message.startsWith("Searching for")) {
+                    speakText(message);
+                }
+            }
+        };
+        
+        // 1. Define the tool schema for the AI
+        const tools: Tool[] = [
+            {
+                functionDeclarations: [
+                    {
+                        name: "googleSearch",
+                        description: "Search for information about specific points of interest (POIs) and incidents in the local Kathmandu area.",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {
+                                searchQuery: {
+                                    type: Type.STRING,
+                                    description: "The name of the place or incident to search for (e.g., 'Thapathali Bridge', 'Traffic Jam at Baneshwor')."
+                                }
+                            },
+                            required: ["searchQuery"]
+                        }
+                    }
+                ]
+            }
+        ];
+        
+        // 2. Implement the tool function. This simulates a search within the app's data.
+        const googleSearch = ({ searchQuery }: { searchQuery: string }) => {
+            console.log(`AI tool executing search for: "${searchQuery}"`);
+            const query = searchQuery.toLowerCase().trim();
+            // Search both POIs and Incidents
+            const results = [...allPois, ...allIncidents].filter(item =>
+                item.name.toLowerCase().includes(query)
+            );
+
+            if (results.length > 0) {
+                // Return structured data for the AI to interpret
+                return { 
+                    results: results.map(r => ({ name: r.name, category: r.category, status: r.status })) 
+                };
+            } else {
+                return { results: `No information found for "${searchQuery}".` };
             }
         };
 
+        const availableTools = {
+            googleSearch,
+        };
+
+        // 3. Update chat logic to handle the function-calling flow
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const userInput = chatInput.value.trim();
             if (!userInput) return;
 
-            window.speechSynthesis.cancel(); // Stop AI from talking when user sends new message
+            window.speechSynthesis.cancel();
             addMessageToChat(userInput, 'user');
             chatInput.value = '';
             typingIndicator.classList.remove('hidden');
 
             try {
                 if (!activeChat) {
-                     // Fix: `systemInstruction` must be inside a `config` object.
                      activeChat = ai.chats.create({
                         model: 'gemini-2.5-flash',
                         config: {
-                            systemInstruction: "You are a helpful and friendly road assistant for Nepal called Sadak Sathi. Provide concise and relevant information about roads, points of interest, and driving conditions. Your knowledge includes: Araniko Highway (good), Prithvi Highway (fair), various local roads (poor/congested), and POIs like Maitighar Mandala, Thapathali Bridge, hospitals, and coffee shops. Be helpful and brief."
+                            tools: tools, // Pass tool schema to the chat model
+                            // Update system instructions to inform the AI about its new tool
+                            systemInstruction: "You are a helpful and friendly road assistant for Nepal called Sadak Sathi. Provide concise and relevant information about roads, points of interest, and driving conditions. When asked about specific locations, use the googleSearch tool to find up-to-date information from the available data. Be helpful and brief."
                         }
                     });
                 }
-                const response = await activeChat.sendMessage({ message: userInput });
+
+                let response: GenerateContentResponse = await activeChat.sendMessage({ message: userInput });
+                
+                // This loop handles the back-and-forth for function calling
+                while (true) {
+                    const functionCall = response.candidates?.[0]?.content?.parts[0]?.functionCall;
+                    
+                    if (!functionCall) {
+                        break; // Exit loop if no function call is present in the response
+                    }
+
+                    const { name, args } = functionCall;
+                    const toolFunction = (availableTools as any)[name];
+
+                    if (!toolFunction) {
+                        throw new Error(`Error: Unknown tool "${name}" requested by the model.`);
+                    }
+                    
+                    if (args.searchQuery) {
+                       addMessageToChat(`Searching for '${args.searchQuery}'...`, 'ai');
+                    }
+                    
+                    // Call the local function that implements the tool
+                    const result = toolFunction(args);
+                    
+                    // Send the tool's result back to the model
+                    // Fix: The 'parts' array must be wrapped in a 'contents' object when sending a tool response.
+                    response = await activeChat.sendMessage({
+                        contents: {
+                            parts: [
+                                {
+                                    functionResponse: {
+                                        name: name,
+                                        response: result
+                                    }
+                                }
+                            ]
+                        }
+                    });
+                }
+                
+                // Display the final text response from the AI
                 addMessageToChat(response.text, 'ai');
 
             } catch (error) {
@@ -521,6 +617,58 @@ document.addEventListener('DOMContentLoaded', () => {
             compassRoseEl.textContent = degreesToCardinal(currentHeading);
 
         }, 2500); // Update every 2.5 seconds
+    };
+
+    const simulateWeather = () => {
+        const weatherIconEl = document.getElementById('weather-icon');
+        const weatherTempEl = document.getElementById('weather-temp');
+        if (!weatherIconEl || !weatherTempEl) return;
+
+        const weatherStates = [
+            { icon: 'sunny', temp: 28 },
+            { icon: 'cloud', temp: 24 },
+            { icon: 'thunderstorm', temp: 21 },
+            { icon: 'ac_unit', temp: 18 }
+        ];
+        let currentStateIndex = 0;
+        
+        const updateWeather = () => {
+            const newState = weatherStates[currentStateIndex];
+            weatherIconEl.textContent = newState.icon;
+            weatherTempEl.textContent = `${newState.temp}°C`;
+            // Add a class for color styling
+            weatherIconEl.className = 'material-icons'; // Reset
+            if (newState.icon === 'sunny') weatherIconEl.classList.add('sunny');
+            else if (newState.icon === 'cloud') weatherIconEl.classList.add('cloudy');
+            else if (newState.icon === 'thunderstorm') weatherIconEl.classList.add('stormy');
+            else if (newState.icon === 'ac_unit') weatherIconEl.classList.add('cold');
+
+            currentStateIndex = (currentStateIndex + 1) % weatherStates.length;
+        };
+
+        updateWeather(); // Run once immediately
+        setInterval(updateWeather, 15000); // Change every 15 seconds
+    };
+
+    const simulateUserLocation = () => {
+        const locationNameEl = document.getElementById('location-name');
+        const locationCoordsEl = document.getElementById('location-coords');
+        if (!locationNameEl || !locationCoordsEl) return;
+        
+        const locations = [
+            { name: "Thamel, Kathmandu", coords: "27.71, 85.31" },
+            { name: "Patan Durbar Square", coords: "27.67, 85.32" },
+            { name: "Boudhanath Stupa", coords: "27.72, 85.36" },
+            { name: "Swayambhunath", coords: "27.71, 85.29" }
+        ];
+        let currentLocationIndex = 0;
+
+        setInterval(() => {
+            currentLocationIndex = (currentLocationIndex + 1) % locations.length;
+            const newLocation = locations[currentLocationIndex];
+            locationNameEl.textContent = newLocation.name;
+            locationCoordsEl.textContent = newLocation.coords;
+        }, 12000); // Change every 12 seconds
     };
 
     const setupEventListeners = () => {
