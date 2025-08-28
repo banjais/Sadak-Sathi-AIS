@@ -393,7 +393,7 @@ input[type="checkbox"][role="switch"]:checked::before { transform: translateX(18
 }
 .info-card--highlighted {
     background-color: rgba(52, 152, 219, 0.1);
-    border-left: 4px solid var(--primary-color);
+    border-left-color: var(--primary-color);
     padding-left: 16px;
 }
 .map-icon {
