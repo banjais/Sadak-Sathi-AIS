@@ -152,7 +152,6 @@ let availableVoices: SpeechSynthesisVoice[] = [];
 let speechQueue: string[] = [];
 let isSpeechEngineBusy = false;
 let speechWatchdog: number | null = null; // Self-healing timer
-// FIX: Maintain a reference to the current utterance to prevent premature garbage collection.
 let currentUtterance: SpeechSynthesisUtterance | null = null;
 
 const voicesReadyPromise = new Promise<void>(resolve => {
@@ -178,52 +177,46 @@ const voicesReadyPromise = new Promise<void>(resolve => {
     }
 });
 
-const cleanupSpeechState = (isError: boolean = false) => {
-    // FIX: Immediately nullify handlers to prevent re-entrant calls from cancel().
-    if (currentUtterance) {
-        currentUtterance.onend = null;
-        currentUtterance.onerror = null;
-    }
-
+const cleanupAndProceed = () => {
     if (speechWatchdog) {
         clearTimeout(speechWatchdog);
         speechWatchdog = null;
     }
-    
-    currentUtterance = null; // Clear reference
-    
-    if (isError) {
-        console.warn("Speech engine error detected. Resetting current utterance and continuing queue.");
-        // We DON'T clear the whole queue. We just cancel the current attempt and let the queue processor move to the next item.
-        window.speechSynthesis.cancel();
+
+    if (currentUtterance) {
+        currentUtterance.onend = null;
+        currentUtterance.onerror = null;
+        currentUtterance = null;
     }
-    
+
     isSpeechEngineBusy = false;
-    // Schedule the next attempt after a delay. Give more recovery time for errors.
-    setTimeout(processSpeechQueue, isError ? 750 : 100);
+    setTimeout(processSpeechQueue, 100); // Process next item
 };
 
-const processSpeechQueue = async () => {
-    if (isSpeechEngineBusy || speechQueue.length === 0) return;
 
+const processSpeechQueue = async () => {
+    if (isSpeechEngineBusy || speechQueue.length === 0) {
+        return;
+    }
+
+    // Safeguard: If the browser engine is stuck in a speaking state, wait.
     if (window.speechSynthesis.speaking) {
-        setTimeout(processSpeechQueue, 250); 
+        setTimeout(processSpeechQueue, 250);
         return;
     }
 
     isSpeechEngineBusy = true;
     const text = speechQueue.shift();
-
     if (!text) {
-        isSpeechEngineBusy = false;
+        cleanupAndProceed();
         return;
     }
 
     try {
         await voicesReadyPromise;
         const utterance = new SpeechSynthesisUtterance(text);
-        currentUtterance = utterance; // Set reference
-        
+        currentUtterance = utterance;
+
         const langMap: { [key: string]: string } = {
             en: 'en-US', np: 'ne-NP', hi: 'hi-IN', es: 'es-ES', fr: 'fr-FR',
             de: 'de-DE', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR',
@@ -243,7 +236,7 @@ const processSpeechQueue = async () => {
         utterance.rate = 1.0;
         utterance.pitch = 1;
 
-        utterance.onend = () => cleanupSpeechState(false);
+        utterance.onend = () => cleanupAndProceed();
         utterance.onerror = (event) => {
             console.error('SpeechSynthesisUtterance.onerror:', {
                 error: (event as any).error,
@@ -251,20 +244,23 @@ const processSpeechQueue = async () => {
                 langRequested: targetLang,
                 voiceFound: voice ? `${voice.name} (${voice.lang})` : 'none',
             });
-            cleanupSpeechState(true);
+            window.speechSynthesis.cancel(); // Force reset on error
+            cleanupAndProceed();
         };
-        
+
         speechWatchdog = window.setTimeout(() => {
             console.warn("Speech synthesis watchdog triggered. Engine may have hung. Forcing reset.");
-            cleanupSpeechState(true);
+            window.speechSynthesis.cancel(); // Force reset
+            cleanupAndProceed();
         }, 15000);
-        
-        window.speechSynthesis.resume();
-        setTimeout(() => window.speechSynthesis.speak(utterance), 100);
+
+        window.speechSynthesis.resume(); // Harmless resume call to wake up engine
+        window.speechSynthesis.speak(utterance);
 
     } catch (e) {
-        console.error("Error in speech processing pipeline:", e);
-        cleanupSpeechState(true);
+        console.error("Critical error in speech processing pipeline:", e);
+        window.speechSynthesis.cancel();
+        cleanupAndProceed();
     }
 };
 
@@ -300,7 +296,8 @@ const speakText = (text: string) => {
 
 const cancelSpeech = () => {
     speechQueue.length = 0; // Clear pending items
-    cleanupSpeechState(true); // Force reset of current item
+    window.speechSynthesis.cancel(); // Force reset of current item
+    cleanupAndProceed();
 };
 
 const t = (key: string): string => {
@@ -624,7 +621,6 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('appLanguage', lang);
         });
 
-        // FIX: Implement the dark mode theme toggle functionality.
         const themeToggle = document.getElementById('theme-toggle')!;
         const appContainer = document.getElementById('app-container')!;
         const themeIcon = themeToggle.querySelector('.material-icons')!;
@@ -680,7 +676,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('dashboard-btn')?.addEventListener('click', () => document.getElementById('driver-dashboard')?.classList.toggle('open'));
 
-        // FIX: Add guards to layer toggles to prevent race conditions.
         (document.getElementById('toggle-roads') as HTMLInputElement).addEventListener('change', (e) => {
             if (roadsLayer) {
                 map.hasLayer(roadsLayer) ? map.removeLayer(roadsLayer) : map.addLayer(roadsLayer);
