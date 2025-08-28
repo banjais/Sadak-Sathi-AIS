@@ -154,7 +154,7 @@ const translations: { [key: string]: any } = {
     fr: { layers: 'Couches', roads: 'Routes', pois: 'Points d\'Intérêt', incidents: 'Incidents', display_panel_title: 'Informations à Proximité', route_finder: 'Recherche d\'Itinéraire', find_route_btn: 'Trouver l\'Itinéraire Optimal', clear_route_btn: 'Effacer l\'Itinéraire', share_route: 'Partager l\'Itinéraire', link_copied: 'Lien Copié !', route_finder_error: 'Impossible de trouver le lieu de départ ou d\'arrivée. Veuillez utiliser des noms de POI valides.', route_finder_error_no_start: 'Votre emplacement actuel n\'est pas disponible. Impossible de planifier l\'itinéraire.', menu_map: 'Carte', menu_alerts: 'Alertes', menu_driver: 'Conducteur', menu_passenger: 'Passager', menu_settings: 'Paramètres', menu_profile: 'Profil', ai_chat_title: 'Assistant IA', ai_chat_placeholder: 'Demandez pour trouver un lieu ou signaler un incident...', ai_chat_placeholder_passenger: 'Renseignez-vous sur les lieux à proximité ou planifiez un voyage...', ai_chat_placeholder_listening: 'Écoute...', report_incident_prompt: 'Je veux signaler un incident ici : ', share_location: 'Partager la Position en Direct', nearby_pois: 'POI à Proximité', voice_error_no_speech: 'Je n\'ai pas compris. Veuillez essayer de toucher à nouveau le micro.', voice_error_mic_problem: 'Il semble y avoir un problème avec votre microphone.', route_preferences: 'Préférences d\'Itinéraire', prefer_highways: 'Préférer les Autoroutes', avoid_tolls: 'Éviter les Péages', prefer_scenic_route: 'Préférer la Route Panorámica', route_pref_scenic: 'Un itinéraire panoramique a été trouvé.', route_pref_highways: 'Un itinéraire préférant les autoroutes a été trouvé.', route_pref_fastest: 'Itinéraire le plus rapide trouvé.', route_pref_avoid_tolls: 'Évitement des péages.', mic_denied: "Accès au microphone refusé. Veuillez autoriser l'accès au microphone dans les paramètres de votre navigateur pour utiliser les commandes vocales.", loc_denied: "Accès à la localisation refusé. Veuillez l'activer dans les paramètres de votre navigateur.", speech_unsupported: "La reconnaissance vocale n'est pas prise en charge par votre navigateur.", loc_unavailable: "Impossible d'obtenir votre position. Vérifiez la connexion et les paramètres.", loc_timeout: "La demande de localisation a expiré. Veuillez réessayer avec un meilleur signal.", gps_searching: 'État du GPS : Recherche...', gps_ok: 'État du GPS : Signal acquis.', gps_error: 'État du GPS : Erreur d\'acquisition du signal.' },
     de: { layers: 'Ebenen', roads: 'Straßen', pois: 'Interessante Orte', incidents: 'Vorfälle', display_panel_title: 'Infos in der Nähe', route_finder: 'Routenfinder', find_route_btn: 'Optimale Route Finden', clear_route_btn: 'Route Löschen', share_route: 'Route Teilen', link_copied: 'Link Kopiert!', route_finder_error: 'Start- oder Zielort konnte nicht gefunden werden. Bitte verwenden Sie gültige POI-Namen.', route_finder_error_no_start: 'Ihr aktueller Standort ist nicht verfügbar. Route kann nicht geplant werden.', menu_map: 'Karte', menu_alerts: 'Warnungen', menu_driver: 'Fahrer', menu_passenger: 'Beifahrer', menu_settings: 'Einstellungen', menu_profile: 'Profil', ai_chat_title: 'KI-Assistent', ai_chat_placeholder: 'Fragen Sie nach einem Ort oder melden Sie einen Vorfall...', ai_chat_placeholder_passenger: 'Fragen Sie nach Orten in der Nähe oder planen Sie eine Reise...', ai_chat_placeholder_listening: 'Hören...', report_incident_prompt: 'Ich möchte hier einen Vorfall melden: ', share_location: 'Live-Standort Teilen', nearby_pois: 'POIs in der Nähe', voice_error_no_speech: 'Ich habe das nicht verstanden. Bitte tippen Sie erneut auf das Mikrofon.', voice_error_mic_problem: 'Es scheint ein Problem mit Ihrem Mikrofon zu geben.', route_preferences: 'Routenpräferenzen', prefer_highways: 'Autobahnen Bevorzugen', avoid_tolls: 'Maut Vermeiden', prefer_scenic_route: 'Szenische Route Bevorzugen', route_pref_scenic: 'Eine malerische Route wurde gefunden.', route_pref_highways: 'Eine Route, die Autobahnen bevorzugt, wurde gefunden.', route_pref_fastest: 'Schnellste Route gefunden.', route_pref_avoid_tolls: 'Maut wird vermieden.', mic_denied: "Mikrofonzugriff verweigert. Bitte erlauben Sie den Mikrofonzugriff in Ihren Browsereinstellungen, um Sprachbefehle zu verwenden.", loc_denied: "Standortzugriff verweigert. Bitte aktivieren Sie ihn in Ihren Browsereinstellungen.", speech_unsupported: "Spracherkennung wird von Ihrem Browser nicht unterstützt.", loc_unavailable: "Ihr Standort konnte nicht abgerufen werden. Bitte überprüfen Sie Verbindung und Einstellungen.", loc_timeout: "Standortanfrage abgelaufen. Bitte versuchen Sie es mit einem besseren Signal erneut.", gps_searching: 'GPS-Status: Suche...', gps_ok: 'GPS-Status: Signal erfasst.', gps_error: 'GPS-Status: Fehler bei der Signalerfassung.' },
     zh: { layers: '图层', roads: '道路', pois: '兴趣点', incidents: '事件', display_panel_title: '附近信息', route_finder: '路线查找器', find_route_btn: '查找最佳路线', clear_route_btn: '清除路线', share_route: '分享路线', link_copied: '链接已复制！', route_finder_error: '无法找到起点或终点。请使用有效的POI名称。', route_finder_error_no_start: '您当前的位置不可用。无法规划路线。', menu_map: '地图', menu_alerts: '警报', menu_driver: '驾驶模式', menu_passenger: '乘客模式', menu_settings: '设置', menu_profile: '个人资料', ai_chat_title: 'AI助手', ai_chat_placeholder: '询问查找地点或报告事件...', ai_chat_placeholder_passenger: '询问附近地点或规划行程...', ai_chat_placeholder_listening: '正在聆听...', report_incident_prompt: '我想在这里报告一个事件：', share_location: '分享实时位置', nearby_pois: '附近的POI', voice_error_no_speech: '我没听清。请再试一次。', voice_error_mic_problem: '您的麦克风似乎有问题。', route_preferences: '路线偏好', prefer_highways: '高速公路优先', avoid_tolls: '避开收费站', prefer_scenic_route: '风景路线优先', route_pref_scenic: '已找到风景路线。', route_pref_highways: '已找到高速公路优先路线。', route_pref_fastest: '已找到最快路线。', route_pref_avoid_tolls: '避开收费站。', mic_denied: "麦克风访问被拒绝。请在浏览器设置中允许麦克风访问以使用语音命令。", loc_denied: "位置访问被拒绝。请在浏览器设置中启用它。", speech_unsupported: "您的浏览器不支持语音识别。", loc_unavailable: "无法获取您的位置。请检查连接和设置。", loc_timeout: "位置请求超时。请在信号更好的地方再试。", gps_searching: 'GPS状态：搜索中...', gps_ok: 'GPS状态：信号已获取。', gps_error: 'GPS状态：获取信号时出错。' },
-    ja: { layers: 'レイヤー', roads: '道路', pois: '興味のある場所', incidents: 'インシデント', display_panel_title: '周辺情報', route_finder: 'ルート検索', find_route_btn: '最適ルートを検索', clear_route_btn: 'ルートをクリア', share_route: 'ルートを共有', link_copied: 'リンクがコピーされました！', route_finder_error: '出発地または目的地が見つかりませんでした。有効なPOI名を使用してください。', route_finder_error_no_start: '現在地が利用できません。ルートを計画できません。', menu_map: '地図', menu_alerts: 'アラート', menu_driver: '運転手', menu_passenger: '乗客', menu_settings: '設定', menu_profile: 'プロフィール', ai_chat_title: 'AIアシスタント', ai_chat_placeholder: '場所の検索やインシデントの報告を依頼...', ai_chat_placeholder_passenger: '近くの場所について尋ねるか、旅行を計画する...', ai_chat_placeholder_listening: '聞き取り中...', report_incident_prompt: 'ここでインシデントを報告したい：', share_location: 'ライブロケーションを共有', nearby_pois: '近くのPOI', voice_error_no_speech: '聞き取れませんでした。もう一度マイクをタップしてください。', voice_error_mic_problem: 'マイクに問題があるようです。', route_preferences: 'ルート設定', prefer_highways: '高速道路を優先', avoid_tolls: '有料道路を避ける', prefer_scenic_route: '景色の良いルートを優先', route_pref_scenic: '景色の良いルートが見つかりました。', route_pref_highways: '高速道路を優先するルートが見つかりました。', route_pref_fastest: '最速ルートが見つかりました。', route_pref_avoid_tolls: '有料道路を回避中。', mic_denied: "マイクへのアクセスが拒否されました。音声コマンドを使用するには、ブラウザの設定でマイクへのアクセスを許可してください。", loc_denied: "位置情報へのアクセスが拒否されました。ブラウザの設定で有効にしてください。", speech_unsupported: "お使いのブラウザは音声認識をサポートしていません。", loc_unavailable: "現在地を取得できませんでした。接続と設定を確認してください。", loc_timeout: "位置情報のリクエストがタイムアウトしました。電波の良い場所で再試行してください。", gps_searching: 'GPSステータス：検索中...', gps_ok: 'GPSステータス：信号取得済み。', gps_error: 'GPSステータス：信号取得エラー。' },
+    ja: { layers: 'レイヤー', roads: '道路', pois: '興味のある場所', incidents: 'インシデント', display_panel_title: '周辺情報', route_finder: 'ルート検索', find_route_btn: '最適ルートを検索', clear_route_btn: 'ルートをクリア', share_route: 'ルートを共有', link_copied: 'リンクがコピーされました！', route_finder_error: '出発地または目的地が見つかりませんでした。有効なPOI名を使用してください。', route_finder_error_no_start: '現在地が利用できません。ルートを計画できません。', menu_map: '地図', menu_alerts: 'アラート', menu_driver: '運転手', menu_passenger: '乗客', menu_settings: '設定', menu_profile: 'プロフィール', ai_chat_title: 'AIアシスタント', ai_chat_placeholder: '場所の検索やインシデントの報告を依頼...', ai_chat_placeholder_passenger: '近くの場所について尋ねるか、旅行を計画する...', ai_chat_placeholder_listening: '聞き取り中...', report_incident_prompt: 'ここでインシデントを報告したい：', share_location: 'ライブロケーションを共有', nearby_pois: '近くのPOI', voice_error_no_speech: '聞き取れませんでした。もう一度マイクをタップしてください。', voice_error_mic_problem: 'マイクに問題があるようです。', route_preferences: 'ルート設定', prefer_highways: '高速道路を優先', avoid_tolls: '有料道路を避ける', prefer_scenic_route: '景色の良いルートを優先', route_pref_scenic: '景色の良いルートが見つかりました。', route_pref_highways: '高速道路を優先するルートが見つかりました。', route_pref_fastest: '最速ルートが見つかりました。', route_pref_avoid_tolls: '有料道路を回避中。', mic_denied: "マイクへのアクセスが拒否されました。音声コマンドを使用するには、ブラウザの設定でマイクへのアクセスを許可してください。", loc_denied: "位置情報へのアクセスが拒否されました。ブラウザの設定で有効にしてください。", speech_unsupported: "お使いのブラウザは音声認識をサポートしていません。", loc_unavailable: "現在地を取得できませんでした。接続と設定を確認してください。", loc_timeout: "位置情報のリクエストがタイムアウトしました。電波の良い場所で再試行してください。", gps_searching: 'GPSステータस：検索中...', gps_ok: 'GPSステータス：信号取得済み。', gps_error: 'GPSステータス：信号取得エラー。' },
     ko: { layers: '레이어', roads: '도로', pois: '관심 지점', incidents: '사건', display_panel_title: '주변 정보', route_finder: '경로 찾기', find_route_btn: '최적 경로 찾기', clear_route_btn: '경로 지우기', share_route: '경로 공유', link_copied: '링크가 복사되었습니다!', route_finder_error: '출발지 또는 목적지를 찾을 수 없습니다. 유효한 POI 이름을 사용하십시오.', route_finder_error_no_start: '현재 위치를 사용할 수 없습니다. 경로를 계획할 수 없습니다.', menu_map: '지도', menu_alerts: '알림', menu_driver: '운전자', menu_passenger: '승객', menu_settings: '설정', menu_profile: '프로필', ai_chat_title: 'AI 비서', ai_chat_placeholder: '장소를 찾거나 사건을 보고하도록 요청...', ai_chat_placeholder_passenger: '주변 장소에 대해 질문하거나 여행 계획 세우기...', ai_chat_placeholder_listening: '듣는 중...', report_incident_prompt: '여기서 사건을 보고하고 싶습니다:', share_location: '실시간 위치 공유', nearby_pois: '주변 POI', voice_error_no_speech: '못 알아들었습니다. 마이크를 다시 탭해주세요.', voice_error_mic_problem: '마이크에 문제가 있는 것 같습니다。', route_preferences: '경로 기본 설정', prefer_highways: '고속도로 선호', avoid_tolls: '통행료 회피', prefer_scenic_route: '경치 좋은 경로 선호', route_pref_scenic: '경치 좋은 경로를 찾았습니다.', route_pref_highways: '고속도로를 선호하는 경로를 찾았습니다.', route_pref_fastest: '가장 빠른 경로를 찾았습니다.', route_pref_avoid_tolls: '통행료를 피하는 중입니다.', mic_denied: "마이크 접근이 거부되었습니다. 음성 명령을 사용하려면 브라우저 설정에서 마이크 접근을 허용하십시오.", loc_denied: "위치 정보 접근이 거부되었습니다. 브라우저 설정에서 활성화하십시오.", speech_unsupported: "브라우저에서 음성 인식을 지원하지 않습니다.", loc_unavailable: "위치를 가져올 수 없습니다. 연결 및 설정을 확인하십시오.", loc_timeout: "위치 요청 시간이 초과되었습니다. 신호가 더 좋은 곳에서 다시 시도하십시오.", gps_searching: 'GPS 상태: 검색 중...', gps_ok: 'GPS 상태: 신호 수신됨.', gps_error: 'GPS 상태: 신호 수신 오류.' },
     new: { layers: 'तहः', roads: 'लं', pois: 'रुचि युगु थाय्', incidents: 'घटना', display_panel_title: 'नापयुगु जानकारी', route_finder: 'लं मालेगु', find_route_btn: 'उत्तम लं मालेगु', clear_route_btn: 'लं चीकेगु', share_route: 'लं सेयर यायेगु', link_copied: 'लिङ्क कपि जुल!', menu_settings: 'सेटिङ', menu_driver: 'ड्राइभर', menu_passenger: 'प्यासेन्जर', route_preferences: 'लं प्राथमिकता', prefer_highways: 'राजमार्ग प्राथमिकता', avoid_tolls: 'टोल छले यायेगु', prefer_scenic_route: 'रमणीय लं प्राथमिकता' },
     mai: { layers: 'परत', roads: 'सड़क', pois: 'रुचिक स्थान', incidents: 'घटना', display_panel_title: 'नजिकक जानकारी', route_finder: 'मार्ग खोजू', find_route_btn: 'उत्तम मार्ग खोजू', clear_route_btn: 'मार्ग हटाउ', share_route: 'मार्ग साझा करू', link_copied: 'लिंक प्रतिलिपि भेल!', menu_settings: 'सेटिङ', menu_driver: 'चालक', menu_passenger: 'यात्री', route_preferences: 'मार्ग प्राथमिकता', prefer_highways: 'राजमार्ग प्राथमिकता', avoid_tolls: 'टोल स बचू', prefer_scenic_route: 'रमणीय मार्ग प्राथमिकता' }
@@ -209,7 +209,7 @@ function showToast(message: string, duration = 3000) {
  */
 function updateGpsIndicator(status: 'searching' | 'ok' | 'error', messageKey: string) {
     const indicator = document.getElementById('gps-status-indicator')!;
-    indicator.className = `gps-${status}`;
+    indicator.className = `gps-status-indicator gps-${status}`;
     const message = translations[currentLang][messageKey] || translations.en[messageKey];
     indicator.title = message;
 }
@@ -262,7 +262,7 @@ function handleGeolocationSuccess(position: GeolocationPosition) {
  * @param {GeolocationPositionError} error The geolocation error object.
  */
 function handleGeolocationError(error: GeolocationPositionError) {
-    console.error("Geolocation error:", error);
+    console.error(`Geolocation error: Code ${error.code} - ${error.message}`);
     stopGeolocationWatch(); // Stop trying if there's a persistent error
     updateGpsIndicator('error', 'gps_error');
     
@@ -538,7 +538,8 @@ function updateUserLocationMarker() {
  * Updates the driver cockpit UI elements.
  */
 function updateDriverCockpit() {
-    if (document.body.dataset.mode !== 'driver' || !currentUserPosition) return;
+    const appContainer = document.getElementById('app-container')!;
+    if (appContainer.dataset.mode !== 'driver' || !currentUserPosition) return;
 
     const speedEl = document.querySelector('#speed-widget .value')!;
     const compassEl = document.querySelector('#compass-widget .compass-rose')!;
@@ -588,7 +589,13 @@ function toggleLayer(layer: L.FeatureGroup | L.GeoJSON, show: boolean) {
  * @returns {any | null} The POI object or null if not found.
  */
 function findPOIByName(name: string): any | null {
-    if (name.toLowerCase().trim() === 'my location') return { name: 'My Location', ...currentUserPosition };
+    if (name.toLowerCase().trim() === 'my location') {
+        if (!currentUserPosition) {
+            showToast(translations[currentLang].route_finder_error_no_start, 4000);
+            return null;
+        }
+        return { name: 'My Location', ...currentUserPosition };
+    }
     const searchTerm = name.toLowerCase().trim();
     return poisData.find(p => p.name.toLowerCase().trim() === searchTerm) || null;
 }
@@ -609,30 +616,29 @@ function findOptimalRoute() {
         const start: [number, number] = [fromPOI.lat, fromPOI.lng];
         const end: [number, number] = [toPOI.lat, toPOI.lng];
         
-        let waypoints: [number, number][] = [start, end];
+        let waypoints: [number, number][] = [start];
         let messageKey = 'route_pref_fastest';
         
         // Mock route generation based on preferences
         if (routePreferences.preferHighways) {
-            // Find a point on the highway to snap to
             const highway = roadsData.features.find((f: any) => f.properties.name === "Prithvi Highway");
             if (highway) {
-                // FIX: To resolve type error, explicitly create a new tuple [lat, lon] from the GeoJSON coordinate [lon, lat].
                 const coord = highway.geometry.coordinates[Math.floor(highway.geometry.coordinates.length / 2)];
                 const midPointOnHighway: [number, number] = [coord[1], coord[0]];
-                waypoints = [start, midPointOnHighway, end];
+                waypoints.push(midPointOnHighway);
             }
             messageKey = 'route_pref_highways';
         } else if (routePreferences.preferScenic) {
             const scenicRoad = roadsData.features.find((f: any) => f.properties.name === "Local Road");
             if (scenicRoad) {
-                 // FIX: To resolve type error, explicitly create a new tuple [lat, lon] from the GeoJSON coordinate [lon, lat].
                  const coord = scenicRoad.geometry.coordinates[Math.floor(scenicRoad.geometry.coordinates.length / 2)];
                  const midPointOnScenic: [number, number] = [coord[1], coord[0]];
-                 waypoints = [start, midPointOnScenic, end];
+                 waypoints.push(midPointOnScenic);
             }
              messageKey = 'route_pref_scenic';
         }
+        
+        waypoints.push(end);
 
         currentRouteCoords = waypoints;
         currentRouteInfo = { from: fromPOI.name, to: toPOI.name };
@@ -658,7 +664,9 @@ function findOptimalRoute() {
         document.getElementById('share-route-btn')!.classList.remove('hidden');
 
     } else {
-        routeDetails.innerHTML = `<p style="color:var(--danger-color);">${translations[currentLang].route_finder_error}</p>`;
+        if(fromInput.value && toInput.value) {
+            routeDetails.innerHTML = `<p style="color:var(--danger-color);">${translations[currentLang].route_finder_error}</p>`;
+        }
     }
 }
 

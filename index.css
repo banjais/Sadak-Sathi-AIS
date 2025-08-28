@@ -399,9 +399,6 @@ input[type="checkbox"][role="switch"]:checked::before { transform: translateX(18
 .map-icon {
     transition: transform 0.2s ease-in-out;
 }
-.map-icon .leaflet-popup-content-wrapper {
-    transition: transform 0.2s;
-}
 .map-icon--highlighted .leaflet-marker-icon {
     transform: scale(1.5);
     z-index: 1000 !important; /* Ensure it's on top */
