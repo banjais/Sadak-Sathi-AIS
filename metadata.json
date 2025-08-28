@@ -2,6 +2,7 @@
   "name": "Sadak-Sathi-AIstudio",
   "description": "Your Road Companion",
   "requestFramePermissions": [
-    "geolocation"
+    "geolocation",
+    "microphone"
   ]
 }

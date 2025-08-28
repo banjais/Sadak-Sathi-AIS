@@ -17,7 +17,7 @@
 </script>
 </head>
 <body>
-    <div id="app-container" data-theme="light">
+    <div id="app-container" data-theme="light" data-mode="driver">
         <!-- Map container -->
         <div id="map"></div>
 
@@ -59,8 +59,8 @@
                 <label for="toggle-roads" data-lang-key="roads">Roads</label>
             </div>
             <div class="layer-toggle">
-                <input type="checkbox" id="toggle-bridges" checked>
-                <label for="toggle-bridges" data-lang-key="bridges">Bridges & POIs</label>
+                <input type="checkbox" id="toggle-pois" checked>
+                <label for="toggle-pois" data-lang-key="pois">Points of Interest</label>
             </div>
             <div class="layer-toggle">
                 <input type="checkbox" id="toggle-incidents" checked>
@@ -107,6 +107,18 @@
                     <span class="label">Temp</span>
                 </div>
             </div>
+        </div>
+
+        <!-- Passenger Widgets Panel -->
+        <div id="passenger-widgets-panel">
+            <button id="share-location-btn" class="widget-button">
+                <span class="material-icons">share_location</span>
+                <span data-lang-key="share_location">Share Live Location</span>
+            </button>
+            <button id="nearby-pois-btn" class="widget-button">
+                <span class="material-icons">attractions</span>
+                <span data-lang-key="nearby_pois">Nearby POIs</span>
+            </button>
         </div>
         
         <!-- Route Finder Trigger Button -->
@@ -187,12 +199,15 @@
             <button id="hamburger-menu" class="menu-item" aria-label="Open settings">
                  <span class="blinking-dot"></span>
                 <span class="material-icons">menu</span>
+                <span data-lang-key="menu_settings">Settings</span>
             </button>
-            <button class="menu-item" aria-label="Passenger Mode">
+            <button id="passenger-mode-btn" class="menu-item" aria-label="Passenger Mode">
                 <span class="material-icons">people</span>
+                <span data-lang-key="menu_passenger">Passenger</span>
             </button>
-             <button class="menu-item active" aria-label="Onboard Mode">
+             <button id="driver-mode-btn" class="menu-item active" aria-label="Driver Mode">
                 <span class="material-icons">navigation</span>
+                <span data-lang-key="menu_driver">Driver</span>
             </button>
         </nav>
     </div>

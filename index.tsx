@@ -18,6 +18,8 @@ declare namespace L {
     type LatLngBounds = any;
 }
 declare var L: any;
+// Web Speech API
+const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -65,10 +67,16 @@ const dorGeoJson: any = {
 };
 
 // Mock POIs (from "Google Sheets")
-let bridgePois = [
-    { id: 1, name: "Maitighar Mandala", lat: 27.693, lng: 85.322, type: 'poi', status: 'Good condition' },
-    { id: 2, name: "Thapathali Bridge", lat: 27.691, lng: 85.316, type: 'bridge', status: 'Under maintenance' },
-    { id: 5, name: "Patan Hospital", lat: 27.671, lng: 85.318, type: 'poi', status: 'Open 24/7' },
+let pois = [
+    { id: 1, name: "Maitighar Mandala", lat: 27.693, lng: 85.322, type: 'poi', status: 'Good condition', category: 'landmark' },
+    { id: 2, name: "Thapathali Bridge", lat: 27.691, lng: 85.316, type: 'bridge', status: 'Under maintenance', category: 'bridge' },
+    { id: 5, name: "Patan Hospital", lat: 27.671, lng: 85.318, type: 'poi', status: 'Open 24/7', category: 'hospital' },
+    { id: 6, name: "Himalayan Java Coffee", lat: 27.695, lng: 85.320, type: 'poi', status: 'Open', category: 'coffee shop' },
+    { id: 7, name: "Nabil Bank ATM", lat: 27.690, lng: 85.318, type: 'poi', status: 'In Service', category: 'atm' },
+    { id: 8, name: "The Old House Restaurant", lat: 27.705, lng: 85.319, type: 'poi', status: 'Open', category: 'restaurant' },
+    { id: 9, name: "Civil Mall", lat: 27.698, lng: 85.311, type: 'poi', status: 'Open', category: 'shopping' },
+    { id: 10, name: "Everest Bank ATM", lat: 27.685, lng: 85.325, type: 'poi', status: 'In Service', category: 'atm' },
+    { id: 11, name: "Bhatbhateni Supermarket", lat: 27.688, lng: 85.333, type: "poi", status: "Open", category: "shopping" },
 ];
 
 // Mock Incidents (from "Waze")
@@ -90,7 +98,7 @@ const translations: { [key: string]: any } = {
     en: {
         layers: 'Layers',
         roads: 'Roads',
-        bridges: 'Bridges & POIs',
+        pois: 'Points of Interest',
         incidents: 'Incidents',
         display_panel_title: 'Nearby Information',
         route_finder: 'Route Finder',
@@ -99,18 +107,27 @@ const translations: { [key: string]: any } = {
         share_route: 'Share Route',
         link_copied: 'Link Copied!',
         route_finder_error: 'Could not find start or end location. Please use valid POI names.',
+        route_finder_error_no_start: 'Your current location is not available. Cannot plan route.',
         menu_map: 'Map',
         menu_alerts: 'Alerts',
         menu_driver: 'Driver',
+        menu_passenger: 'Passenger',
+        menu_settings: 'Settings',
         menu_profile: 'Profile',
         ai_chat_title: 'AI Assistant',
         ai_chat_placeholder: 'Ask to find a place or report an incident...',
+        ai_chat_placeholder_passenger: 'Ask about nearby places or plan a trip...',
+        ai_chat_placeholder_listening: 'Listening...',
         report_incident_prompt: 'I want to report an incident here: ',
+        share_location: 'Share Live Location',
+        nearby_pois: 'Nearby POIs',
+        voice_error_no_speech: "I didn't catch that. Please try tapping the mic again.",
+        voice_error_mic_problem: "There seems to be an issue with your microphone.",
     },
     np: {
         layers: 'तहहरू',
         roads: 'सडकहरू',
-        bridges: 'पुल र POIs',
+        pois: 'रुचिका ठाउँहरू',
         incidents: 'घटनाहरू',
         display_panel_title: 'नजिकैको जानकारी',
         route_finder: 'मार्ग खोज्नुहोस्',
@@ -119,18 +136,27 @@ const translations: { [key: string]: any } = {
         share_route: 'मार्ग साझा गर्नुहोस्',
         link_copied: 'लिङ्क प्रतिलिपि भयो!',
         route_finder_error: 'सुरु वा अन्त्य स्थान फेला पार्न सकिएन। कृपया मान्य POI नामहरू प्रयोग गर्नुहोस्।',
+        route_finder_error_no_start: 'तपाईंको हालको स्थान उपलब्ध छैन। मार्ग योजना गर्न सकिँदैन।',
         menu_map: 'नक्सा',
         menu_alerts: 'सतर्कता',
         menu_driver: 'चालक',
+        menu_passenger: 'यात्री',
+        menu_settings: 'सेटिङहरू',
         menu_profile: 'प्रोफाइल',
         ai_chat_title: 'एआई सहायक',
         ai_chat_placeholder: 'ठाउँ खोज्न वा घटना रिपोर्ट गर्न सोध्नुहोस्...',
+        ai_chat_placeholder_passenger: 'नजिकैका ठाउँहरूको बारेमा सोध्नुहोस् वा यात्राको योजना बनाउनुहोस्...',
+        ai_chat_placeholder_listening: 'सुन्दै...',
         report_incident_prompt: 'म यहाँ एक घटना रिपोर्ट गर्न चाहन्छु: ',
+        share_location: 'लाइभ स्थान साझा गर्नुहोस्',
+        nearby_pois: 'नजिकैको POIs',
+        voice_error_no_speech: 'मैले बुझिनँ। कृपया माइक फेरि ट्याप गर्नुहोस्।',
+        voice_error_mic_problem: 'तपाईंको माइक्रोफोनमा समस्या देखिन्छ।',
     },
     hi: {
         layers: 'परतें',
         roads: 'सड़कें',
-        bridges: 'पुल और POIs',
+        pois: 'रुचि के स्थान',
         incidents: 'घटनाएं',
         display_panel_title: 'आस-पास की जानकारी',
         route_finder: 'मार्ग खोजें',
@@ -139,20 +165,29 @@ const translations: { [key: string]: any } = {
         share_route: 'मार्ग साझा करें',
         link_copied: 'लिंक कॉपी किया गया!',
         route_finder_error: 'प्रारंभ या अंत स्थान नहीं मिला। कृपया मान्य POI नामों का उपयोग करें।',
+        route_finder_error_no_start: 'आपका वर्तमान स्थान उपलब्ध नहीं है। मार्ग की योजना नहीं बनाई जा सकती।',
         menu_map: 'नक्शा',
         menu_alerts: 'चेतावनी',
         menu_driver: 'चालक',
+        menu_passenger: 'यात्री',
+        menu_settings: 'सेटिंग्स',
         menu_profile: 'प्रोफ़ाइल',
         ai_chat_title: 'एआई सहायक',
         ai_chat_placeholder: 'कोई स्थान खोजने या घटना की रिपोर्ट करने के लिए कहें...',
+        ai_chat_placeholder_passenger: 'आस-पास के स्थानों के बारे में पूछें या यात्रा की योजना बनाएं...',
+        ai_chat_placeholder_listening: 'सुन रहा है...',
         report_incident_prompt: 'मैं यहां एक घटना की रिपोर्ट करना चाहता हूं: ',
+        share_location: 'लाइव स्थान साझा करें',
+        nearby_pois: 'आस-पास के POI',
+        voice_error_no_speech: 'मैंने सुना नहीं। कृपया माइक को फिर से टैप करें।',
+        voice_error_mic_problem: 'आपके माइक्रोफ़ोन में कोई समस्या है।',
     }
 };
 
 let map: L.Map;
 let roadLayer: L.GeoJSON;
 let trafficLayer: L.GeoJSON; // Layer for traffic color casing
-let bridgeLayer: L.FeatureGroup;
+let poiLayer: L.FeatureGroup;
 let incidentLayer: L.FeatureGroup;
 let routeLayer: L.FeatureGroup;
 let userLocationMarker: L.Marker | null = null;
@@ -162,11 +197,13 @@ let currentRouteCoords: [number, number][] | null = null;
 let chatHistory: any[] = []; // Store chat history for context
 let highAccuracyWatchId: number | null = null;
 let lowAccuracyWatchId: number | null = null;
+let recognition: any | null = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     initUI();
-    handleSharedRoute();
+    initSpeechRecognition();
+    handleUrlParameters();
     populateDisplayPanel();
     updateLanguage();
     initGeolocation();
@@ -198,13 +235,13 @@ function initMap() {
     // Initialize layers
     trafficLayer = L.geoJSON(undefined).addTo(map);
     roadLayer = L.geoJSON(undefined, { onEachFeature: onEachRoad }).addTo(map);
-    bridgeLayer = L.featureGroup().addTo(map);
+    poiLayer = L.featureGroup().addTo(map);
     incidentLayer = L.featureGroup().addTo(map);
     routeLayer = L.featureGroup().addTo(map);
 
     // Add initial data to layers
     addRoadLayers();
-    addBridgeLayer(bridgePois);
+    addPoiLayer(pois);
     addIncidentLayer(wazeIncidents);
     
     // Start live traffic simulation
@@ -230,6 +267,10 @@ function initUI() {
     const chatForm = document.getElementById('chat-form')!;
     const centerLocationBtn = document.getElementById('center-location-btn')!;
     const reportIncidentBtn = document.getElementById('report-incident-btn')!;
+    const driverModeBtn = document.getElementById('driver-mode-btn')!;
+    const passengerModeBtn = document.getElementById('passenger-mode-btn')!;
+    const shareLocationBtn = document.getElementById('share-location-btn')!;
+    const nearbyPoisBtn = document.getElementById('nearby-pois-btn')!;
 
     // Theme switcher
     themeToggle.addEventListener('click', () => {
@@ -265,7 +306,7 @@ function initUI() {
     // Route finder modal
     routeFinderTrigger.addEventListener('click', () => routeFinderPanel.classList.remove('hidden'));
     routeFinderClose.addEventListener('click', () => routeFinderPanel.classList.add('hidden'));
-    findRouteBtn.addEventListener('click', findOptimalRoute);
+    findRouteBtn.addEventListener('click', () => findOptimalRoute());
     clearRouteBtn.addEventListener('click', clearRoute);
     shareRouteBtn.addEventListener('click', shareRoute);
 
@@ -280,9 +321,9 @@ function initUI() {
             map.removeLayer(roadLayer);
         }
     });
-    document.getElementById('toggle-bridges')!.addEventListener('change', (e) => {
-        if ((e.target as HTMLInputElement).checked) map.addLayer(bridgeLayer);
-        else map.removeLayer(bridgeLayer);
+    document.getElementById('toggle-pois')!.addEventListener('change', (e) => {
+        if ((e.target as HTMLInputElement).checked) map.addLayer(poiLayer);
+        else map.removeLayer(poiLayer);
     });
     document.getElementById('toggle-incidents')!.addEventListener('change', (e) => {
         if ((e.target as HTMLInputElement).checked) map.addLayer(incidentLayer);
@@ -295,7 +336,12 @@ function initUI() {
     aiAssistantBtn.addEventListener('click', (e) => {
         // Only open modal if it wasn't a drag
         if (aiAssistantBtn.dataset.dragged !== 'true') {
-            aiChatModal.classList.remove('hidden');
+            const currentMode = document.getElementById('app-container')!.dataset.mode;
+            if (currentMode === 'driver' && recognition) {
+                recognition.start();
+            } else {
+                aiChatModal.classList.remove('hidden');
+            }
         }
         aiAssistantBtn.dataset.dragged = 'false';
     });
@@ -329,6 +375,41 @@ function initUI() {
         chatInput.value = translations[currentLang].report_incident_prompt;
         chatInput.focus();
     });
+
+    // Mode Switching
+    driverModeBtn.addEventListener('click', () => switchMode('driver'));
+    passengerModeBtn.addEventListener('click', () => switchMode('passenger'));
+
+    // Passenger Mode Widgets
+    shareLocationBtn.addEventListener('click', shareLiveLocation);
+    nearbyPoisBtn.addEventListener('click', () => {
+        displayPanel.classList.remove('collapsed');
+        setTimeout(() => map.invalidateSize(), 400);
+    });
+}
+
+function switchMode(newMode: 'driver' | 'passenger') {
+    const appContainer = document.getElementById('app-container')!;
+    if (appContainer.dataset.mode === newMode) return; // No change
+
+    appContainer.dataset.mode = newMode;
+
+    // Update active button
+    document.querySelector('#bottom-menu .menu-item.active')?.classList.remove('active');
+    document.getElementById(`${newMode}-mode-btn`)!.classList.add('active');
+    
+    // Update AI Assistant
+    const aiIcon = document.querySelector('#ai-assistant .material-icons') as HTMLElement;
+    const chatInput = document.getElementById('chat-input') as HTMLInputElement;
+
+    if (newMode === 'passenger') {
+        aiIcon.textContent = 'smart_toy';
+        chatInput.setAttribute('data-lang-key-placeholder', 'ai_chat_placeholder_passenger');
+    } else { // driver
+        aiIcon.textContent = 'mic';
+        chatInput.setAttribute('data-lang-key-placeholder', 'ai_chat_placeholder');
+    }
+    updateLanguage(); // Refresh placeholders
 }
 
 function updateLanguage() {
@@ -386,9 +467,9 @@ function onEachRoad(feature: any, layer: any) {
     `);
 }
 
-function addBridgeLayer(pois: any[]) {
-    bridgeLayer.clearLayers();
-    pois.forEach(poi => {
+function addPoiLayer(items: any[]) {
+    poiLayer.clearLayers();
+    items.forEach(poi => {
         const iconHtml = `<span class="material-icons" style="color: #3498db;">${poi.type === 'bridge' ? 'location_city' : 'place'}</span>`;
         const marker = L.marker([poi.lat, poi.lng], {
             icon: L.divIcon({
@@ -399,7 +480,7 @@ function addBridgeLayer(pois: any[]) {
             })
         }).bindPopup(`<h3>${poi.name}</h3><p>${poi.status}</p>`);
         (marker as any).poiId = poi.id;
-        bridgeLayer.addLayer(marker);
+        poiLayer.addLayer(marker);
     });
 }
 
@@ -426,7 +507,7 @@ function addIncidentLayer(incidents: any[]) {
 function populateDisplayPanel() {
     const content = document.getElementById('display-panel-content')!;
     content.innerHTML = '';
-    const allItems = [...bridgePois, ...wazeIncidents];
+    const allItems = [...pois, ...wazeIncidents];
 
     allItems.forEach(item => {
         const card = document.createElement('div');
@@ -450,7 +531,7 @@ function populateDisplayPanel() {
             <span class="card-status ${statusClass}">${typeText}</span>
         `;
         card.addEventListener('click', () => {
-            let targetLayer = item.type === 'bridge' || item.type === 'poi' ? bridgeLayer : incidentLayer;
+            let targetLayer = item.type === 'bridge' || item.type === 'poi' ? poiLayer : incidentLayer;
             let targetIdKey = item.type === 'bridge' || item.type === 'poi' ? 'poiId' : 'incidentId';
             
             targetLayer.eachLayer((layer: any) => {
@@ -523,18 +604,28 @@ function makeDraggable(handleElement: HTMLElement, dragTarget: HTMLElement) {
 
 // --- Routing Functions ---
 
-function findOptimalRoute() {
+function findOptimalRoute(fromName?: string, toName?: string) {
     clearRoute();
-    const fromInput = (document.getElementById('from-input') as HTMLInputElement).value;
-    const toInput = (document.getElementById('to-input') as HTMLInputElement).value;
+    const fromInput = fromName ?? (document.getElementById('from-input') as HTMLInputElement).value;
+    const toInput = toName ?? (document.getElementById('to-input') as HTMLInputElement).value;
     const routeDetails = document.getElementById('route-details')!;
     
-    const fromPoi = bridgePois.find(p => p.name.toLowerCase() === fromInput.toLowerCase());
-    const toPoi = bridgePois.find(p => p.name.toLowerCase() === toInput.toLowerCase());
+    let fromPoi: { lat: number, lng: number } | undefined;
+    if (fromInput.toLowerCase() === 'my location' && currentUserPosition) {
+        fromPoi = { lat: currentUserPosition.lat, lng: currentUserPosition.lng };
+    } else {
+        fromPoi = pois.find(p => p.name.toLowerCase() === fromInput.toLowerCase());
+    }
 
-    if (!fromPoi || !toPoi) {
+    const toPoi = pois.find(p => p.name.toLowerCase() === toInput.toLowerCase());
+
+    if (!fromPoi) {
+        routeDetails.innerHTML = `<p style="color: var(--danger-color);">${translations[currentLang].route_finder_error_no_start}</p>`;
+        return `Error: ${translations[currentLang].route_finder_error_no_start}`;
+    }
+    if (!toPoi) {
         routeDetails.innerHTML = `<p style="color: var(--danger-color);">${translations[currentLang].route_finder_error}</p>`;
-        return;
+        return `Error: Could not find destination ${toInput}.`;
     }
 
     // Mock route that deliberately intersects with a closure to show alert
@@ -576,6 +667,8 @@ function findOptimalRoute() {
     routeLayer.addLayer(routePolyline);
     map.flyToBounds(bounds.pad(0.1));
     document.getElementById('share-route-btn')!.classList.remove('hidden');
+    document.getElementById('route-finder-panel')!.classList.remove('hidden');
+    return `Route from ${fromInput} to ${toInput} has been plotted on the map.`;
 }
 
 function clearRoute() {
@@ -614,9 +707,46 @@ async function shareRoute() {
     }
 }
 
-function handleSharedRoute() {
+async function shareLiveLocation() {
+    if (!currentUserPosition) {
+        // Maybe show a toast/alert later
+        console.error("Current location not available to share.");
+        return;
+    }
+    const { lat, lng } = currentUserPosition;
+    const url = `${window.location.origin}${window.location.pathname}?location=${lat.toFixed(6)},${lng.toFixed(6)}`;
+    
+    const shareData = {
+        title: 'Sadak Sathi Location',
+        text: 'I am here!',
+        url: url
+    };
+    const shareBtn = document.getElementById('share-location-btn')!;
+    const originalText = shareBtn.querySelector('span:last-child')!.textContent;
+
+    try {
+        if (navigator.share) {
+            await navigator.share(shareData);
+        } else {
+            throw new Error('Web Share API not available.');
+        }
+    } catch (err) {
+        // Fallback to clipboard
+        navigator.clipboard.writeText(url).then(() => {
+            const textElement = shareBtn.querySelector('span:last-child')!;
+            textElement.textContent = translations[currentLang].link_copied;
+            setTimeout(() => {
+                textElement.textContent = originalText;
+            }, 2000);
+        });
+    }
+}
+
+function handleUrlParameters() {
     const params = new URLSearchParams(window.location.search);
     const routeParam = params.get('route');
+    const locationParam = params.get('location');
+
     if (routeParam) {
         const coords = routeParam.split(';').map(pair => {
             const [lat, lng] = pair.split(',').map(Number);
@@ -628,6 +758,13 @@ function handleSharedRoute() {
         map.flyToBounds(routePolyline.getBounds().pad(0.1));
         document.getElementById('route-finder-panel')!.classList.remove('hidden');
         document.getElementById('share-route-btn')!.classList.remove('hidden');
+    } else if (locationParam) {
+        const [lat, lng] = locationParam.split(',').map(Number);
+        if (!isNaN(lat) && !isNaN(lng)) {
+            map.flyTo([lat, lng], 16);
+            L.circleMarker([lat, lng], { radius: 8, color: '#e74c3c', fillOpacity: 0.8, stroke: false }).addTo(map)
+                .bindPopup("Shared Location").openPopup();
+        }
     }
 }
 
@@ -706,7 +843,51 @@ function onLocationError(error: GeolocationPositionError) {
     console.error(message);
 }
 
-// --- AI Chat Functions ---
+// --- AI & Voice Functions ---
+function initSpeechRecognition() {
+    if (!SpeechRecognition) {
+        console.error("Speech Recognition not supported in this browser.");
+        return;
+    }
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US'; // Can be changed dynamically with language
+    recognition.interimResults = false;
+
+    const aiAssistantBtn = document.getElementById('ai-assistant')!;
+    const aiChatModal = document.getElementById('ai-chat-modal')!;
+    const chatInput = document.getElementById('chat-input') as HTMLInputElement;
+
+    recognition.onstart = () => {
+        aiAssistantBtn.classList.add('listening');
+        aiChatModal.classList.remove('hidden');
+        chatInput.setAttribute('data-lang-key-placeholder', 'ai_chat_placeholder_listening');
+        updateLanguage();
+    };
+
+    recognition.onend = () => {
+        aiAssistantBtn.classList.remove('listening');
+        const currentMode = document.getElementById('app-container')!.dataset.mode;
+        chatInput.setAttribute('data-lang-key-placeholder', currentMode === 'driver' ? 'ai_chat_placeholder' : 'ai_chat_placeholder_passenger');
+        updateLanguage();
+    };
+
+    recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        chatInput.value = transcript;
+        handleChatMessage();
+    };
+
+    recognition.onerror = (event: any) => {
+        let errorMessage = translations[currentLang].voice_error_mic_problem;
+        if (event.error === 'no-speech' || event.error === 'audio-capture') {
+            errorMessage = translations[currentLang].voice_error_no_speech;
+        }
+        addMessageToUI(errorMessage, 'ai');
+    };
+}
+
+
 async function handleChatMessage() {
     const input = document.getElementById('chat-input') as HTMLInputElement;
     const message = input.value.trim();
@@ -724,27 +905,25 @@ async function handleChatMessage() {
         const mapCenter = map.getCenter();
         const mapZoom = map.getZoom();
 
-        const visiblePois = bridgePois.filter(poi => bounds.contains(L.latLng(poi.lat, poi.lng)));
+        const visiblePois = pois.filter(poi => bounds.contains(L.latLng(poi.lat, poi.lng)));
         const visibleIncidents = wazeIncidents.filter(incident => bounds.contains(L.latLng(incident.lat, incident.lng)));
 
         let contextString = `Current map context:\n- Map Center: ${mapCenter.lat.toFixed(4)}, ${mapCenter.lng.toFixed(4)}\n- Zoom Level: ${mapZoom}\n`;
+        if (currentUserPosition) {
+            contextString += `- User's current location: ${currentUserPosition.lat.toFixed(4)}, ${currentUserPosition.lng.toFixed(4)}\n`;
+        }
 
         if (visiblePois.length > 0) {
             contextString += "- Visible POIs:\n";
             visiblePois.forEach(poi => {
                 contextString += `  - Name: ${poi.name} (Type: ${poi.type}, Status: ${poi.status})\n`;
             });
-        } else {
-            contextString += "- No POIs are visible.\n";
         }
-
         if (visibleIncidents.length > 0) {
             contextString += "- Visible Incidents:\n";
             visibleIncidents.forEach(incident => {
                 contextString += `  - Name: ${incident.name} (Type: ${incident.type}, Status: ${incident.status})\n`;
             });
-        } else {
-            contextString += "- No incidents are visible.\n";
         }
 
 
@@ -763,7 +942,7 @@ async function handleChatMessage() {
                 },
                 {
                     name: "add_incident",
-                    description: "Add a new incident like a traffic jam, accident, or road closure to the map. If the user says 'here' or doesn't specify a location, the location_name can be omitted, and the map center or user's GPS location will be used.",
+                    description: "Add a new incident like a traffic jam, accident, or road closure to the map. If the user says 'here' or doesn't specify a location, the location_name can be omitted, and the user's GPS location will be used.",
                     parameters: {
                         type: Type.OBJECT,
                         properties: {
@@ -771,6 +950,28 @@ async function handleChatMessage() {
                             location_name: { type: Type.STRING, description: "The name of the location where the incident occurred. Omit if the user says 'here' or similar." }
                         },
                         required: ["incident_type"]
+                    }
+                },
+                {
+                    name: "start_navigation",
+                    description: "Start navigation to a destination. The starting point is always the user's current location.",
+                    parameters: {
+                        type: Type.OBJECT,
+                        properties: {
+                            destination_name: { type: Type.STRING, description: "The name of the destination POI." }
+                        },
+                        required: ["destination_name"]
+                    }
+                },
+                {
+                    name: "find_nearby_pois",
+                    description: "Finds points of interest of a specific type (e.g., 'coffee shop', 'atm', 'restaurant') near the user's current location. This is useful for passenger requests.",
+                    parameters: {
+                        type: Type.OBJECT,
+                        properties: {
+                            poi_type: { type: Type.STRING, description: "The type or category of the POI to search for, like 'coffee' or 'restaurant'." }
+                        },
+                        required: ["poi_type"]
                     }
                 }
             ]
@@ -794,6 +995,18 @@ async function handleChatMessage() {
                  result = findPoiOnMap(args.poi_name as string);
             } else if (name === 'add_incident') {
                 result = addIncidentToMap(args.incident_type as string, args.location_name as string | undefined);
+            } else if (name === 'start_navigation') {
+                result = findOptimalRoute("My Location", args.destination_name as string);
+            } else if (name === 'find_nearby_pois') {
+                const poiType = args.poi_type as string;
+                const foundPois = findNearbyPoisOnMap(poiType);
+                if (foundPois.length > 0) {
+                    addMessageToUI(`I found these ${poiType}s near you:`, 'ai', foundPois);
+                } else {
+                    addMessageToUI(`Sorry, I couldn't find any ${poiType}s nearby.`, 'ai');
+                }
+                typingIndicator.classList.add('hidden');
+                return; // Important: exit after handling this tool
             }
             
             // Send the result back to the model for a natural language response
@@ -820,21 +1033,44 @@ async function handleChatMessage() {
     }
 }
 
-function addMessageToUI(text: string, sender: 'user' | 'ai') {
+function addMessageToUI(text: string, sender: 'user' | 'ai', poiSuggestions?: {name: string, id: number}[]) {
     const messagesContainer = document.getElementById('chat-messages')!;
     const messageElement = document.createElement('div');
     messageElement.className = `message ${sender}-message`;
-    messageElement.textContent = text;
+    
+    const textElement = document.createElement('p');
+    textElement.textContent = text;
+    messageElement.appendChild(textElement);
+
+    if (poiSuggestions && poiSuggestions.length > 0) {
+        const suggestionsContainer = document.createElement('div');
+        suggestionsContainer.className = 'poi-suggestions';
+
+        poiSuggestions.forEach(poi => {
+            const button = document.createElement('button');
+            button.className = 'poi-suggestion-btn';
+            button.textContent = poi.name;
+            button.onclick = () => {
+                findOptimalRoute('My Location', poi.name);
+                // Close the chat modal for better UX
+                const aiChatModal = document.getElementById('ai-chat-modal')!;
+                aiChatModal.classList.add('hidden');
+            };
+            suggestionsContainer.appendChild(button);
+        });
+        messageElement.appendChild(suggestionsContainer);
+    }
+
     messagesContainer.appendChild(messageElement);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
 function findPoiOnMap(poiName: string) {
-    const allPois = [...bridgePois, ...wazeIncidents];
+    const allPois = [...pois, ...wazeIncidents];
     const poi = allPois.find(p => p.name.toLowerCase().includes(poiName.toLowerCase()));
 
     if (poi) {
-        const targetLayer = poi.type === 'bridge' || poi.type === 'poi' ? bridgeLayer : incidentLayer;
+        const targetLayer = poi.type === 'bridge' || poi.type === 'poi' ? poiLayer : incidentLayer;
         const targetIdKey = poi.type === 'bridge' || poi.type === 'poi' ? 'poiId' : 'incidentId';
         
         targetLayer.eachLayer((layer: any) => {
@@ -855,7 +1091,7 @@ function addIncidentToMap(incidentType: string, locationName?: string) {
     let finalLocationName: string;
 
     if (locationName) {
-        const location = bridgePois.find(p => p.name.toLowerCase().includes(locationName.toLowerCase()));
+        const location = pois.find(p => p.name.toLowerCase().includes(locationName.toLowerCase()));
         if (!location) {
             return `Sorry, I couldn't find the location "${locationName}" to add the incident.`;
         }
@@ -879,7 +1115,7 @@ function addIncidentToMap(incidentType: string, locationName?: string) {
     }
     
     const newIncident = {
-        id: Math.max(...wazeIncidents.map(i => i.id), ...bridgePois.map(p => p.id)) + 1,
+        id: Math.max(...wazeIncidents.map(i => i.id), ...pois.map(p => p.id)) + 1,
         name: incidentType.charAt(0).toUpperCase() + incidentType.slice(1),
         lat: incidentLat,
         lng: incidentLng,
@@ -894,6 +1130,44 @@ function addIncidentToMap(incidentType: string, locationName?: string) {
     return `OK, I've added a new "${incidentType}" incident at ${finalLocationName}.`;
 }
 
+// --- Helper Functions ---
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in km
+    return d;
+}
+
+function findNearbyPoisOnMap(poiType: string): {name: string, id: number}[] {
+    if (!currentUserPosition) {
+        return [];
+    }
+
+    const searchRadiusKm = 2; // 2km radius
+    const { lat, lng } = currentUserPosition;
+
+    const foundPois = pois.filter(poi => {
+        if (!poi.category) return false;
+        const distance = getDistance(lat, lng, poi.lat, poi.lng);
+        // Simple keyword matching for category
+        return poi.category.toLowerCase().includes(poiType.toLowerCase().replace(/s$/, '')) && distance <= searchRadiusKm;
+    });
+
+    // Sort by distance
+    foundPois.sort((a, b) => {
+        const distA = getDistance(lat, lng, a.lat, a.lng);
+        const distB = getDistance(lat, lng, b.lat, b.lng);
+        return distA - distB;
+    });
+
+    return foundPois.map(p => ({ name: p.name, id: p.id }));
+}
 
 // --- Live Traffic Simulation ---
 function updateAndRefreshTraffic() {
