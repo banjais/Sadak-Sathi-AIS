@@ -51,18 +51,18 @@
             <hr>
             <div class="settings-section">
                 <h3 data-lang-key="route_preferences">Route Preferences</h3>
-                <div class="setting-item">
-                    <input type="checkbox" id="pref-highways">
-                    <label for="pref-highways" data-lang-key="prefer_highways">Prefer Highways</label>
-                </div>
-                <div class="setting-item">
-                    <input type="checkbox" id="pref-no-tolls">
-                    <label for="pref-no-tolls" data-lang-key="avoid_tolls">Avoid Tolls</label>
-                </div>
-                <div class="setting-item">
-                    <input type="checkbox" id="pref-scenic">
-                    <label for="pref-scenic" data-lang-key="prefer_scenic_route">Prefer Scenic Route</label>
-                </div>
+                <label class="setting-item">
+                    <span data-lang-key="prefer_highways">Prefer Highways</span>
+                    <input type="checkbox" id="pref-highways" role="switch">
+                </label>
+                <label class="setting-item">
+                    <span data-lang-key="avoid_tolls">Avoid Tolls</span>
+                    <input type="checkbox" id="pref-no-tolls" role="switch">
+                </label>
+                <label class="setting-item">
+                    <span data-lang-key="prefer_scenic_route">Prefer Scenic Route</span>
+                    <input type="checkbox" id="pref-scenic" role="switch">
+                </label>
             </div>
         </aside>
 
