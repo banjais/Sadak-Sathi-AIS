@@ -95,7 +95,6 @@ let allPois: any[] = [];
 let allIncidents: any[] = [];
 let isVoiceResponseEnabled = true; // State for AI voice response feature
 let activeChat: any = null; // To hold the AI chat session
-let availableVoices: SpeechSynthesisVoice[] = []; // To store available speech voices
 
 // =================================================================================
 // Internationalization (i18n)
@@ -191,31 +190,54 @@ const translations = {
     }
 };
 
-/**
- * Loads the available speech synthesis voices from the browser.
- * This can be asynchronous, so it's also tied to the onvoiceschanged event.
- */
-const loadSpeechVoices = () => {
-    availableVoices = window.speechSynthesis.getVoices();
-    if(availableVoices.length > 0) {
-        console.log(`${availableVoices.length} speech synthesis voices loaded.`);
-    } else {
-        console.warn("Speech synthesis voices array is empty. This may happen on first load.");
+let availableVoices: SpeechSynthesisVoice[] = [];
+// This promise resolves only when the voices have been loaded, preventing race conditions.
+const voicesReadyPromise = new Promise<void>(resolve => {
+    const checkVoices = () => {
+        availableVoices = window.speechSynthesis.getVoices();
+        if (availableVoices.length > 0) {
+            console.log(`${availableVoices.length} speech synthesis voices loaded and ready.`);
+            resolve();
+            return true;
+        }
+        return false;
+    };
+
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = checkVoices;
     }
-};
+
+    // Check immediately, and if not loaded, rely on the event or a failsafe timeout.
+    if (!checkVoices()) {
+         // Failsafe timeout for browsers that don't fire the event reliably
+        setTimeout(() => {
+            if(!checkVoices()) {
+               console.warn("Speech synthesis voices did not load within the timeout. Speech may not work correctly.");
+               resolve(); // Resolve anyway to not block the app
+            }
+        }, 1000);
+    }
+});
+
 
 /**
  * Uses the Web Speech API to speak the given text, if enabled.
- * This version is more robust, checking for available voices to prevent errors.
+ * This version is async and waits for voices to be ready, making it highly robust.
  * @param {string} text The text to speak.
  */
-const speakText = (text: string) => {
+const speakText = async (text: string) => {
     if (!isVoiceResponseEnabled || !('speechSynthesis' in window) || !text) {
         return;
     }
 
-    // Cancel any previous speech to avoid overlap
-    window.speechSynthesis.cancel();
+    // Ensure the voices are loaded before we proceed. This is the core fix.
+    await voicesReadyPromise;
+
+    // A small delay can help browsers that have issues with rapid cancel/speak calls.
+    if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
 
     const utterance = new SpeechSynthesisUtterance(text);
 
@@ -227,12 +249,6 @@ const speakText = (text: string) => {
     };
     const targetLang = langMap[currentLang] || 'en-US';
 
-    // JIT check for voices if the initial load hasn't populated the array yet.
-    // This is a crucial failsafe.
-    if (availableVoices.length === 0) {
-        availableVoices = window.speechSynthesis.getVoices();
-    }
-    
     // Find the best available voice for the target language.
     let voice = availableVoices.find(v => v.lang === targetLang);
     if (!voice) {
@@ -241,12 +257,11 @@ const speakText = (text: string) => {
 
     if (voice) {
         utterance.voice = voice;
-        // Explicitly set the lang property to match the chosen voice.
         utterance.lang = voice.lang;
     } else {
         // This is the critical fallback. If no specific voice is found, we do NOT
-        // set utterance.voice or utterance.lang. This lets the browser use its
-        // default voice and PREVENTS the "language-unavailable" error.
+        // set utterance.lang. This lets the browser use its default voice and
+        // PREVENTS the "language-unavailable" error.
         console.warn(`Speech synthesis voice for lang '${targetLang}' not found. Using browser default.`);
     }
 
@@ -254,13 +269,11 @@ const speakText = (text: string) => {
     utterance.pitch = 1;
 
     utterance.onerror = (event) => {
-        // Provide more detailed error information for debugging.
         console.error('SpeechSynthesisUtterance.onerror:', {
-            error: (event as any).error, // The error string, e.g., "language-unavailable"
+            error: (event as any).error,
             text: utterance.text.substring(0, 100) + '...',
             requestedLang: targetLang,
             usedVoice: utterance.voice ? { name: utterance.voice.name, lang: utterance.voice.lang } : 'default (none found)',
-            // Log available voices to help diagnose the issue
             availableVoices: availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default}))
         });
     };
@@ -309,12 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
         simulateUserLocation();
         simulateDriverEmotion();
         simulateVehicleOBD();
-
-        // Load speech synthesis voices. This is asynchronous, so we also listen for the event.
-        loadSpeechVoices();
-        if (speechSynthesis.onvoiceschanged !== undefined) {
-            speechSynthesis.onvoiceschanged = loadSpeechVoices;
-        }
 
         // Restore saved language or default to 'en'
         const savedLang = localStorage.getItem('appLanguage') || 'en';
@@ -459,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     
-    const addMessageToChat = (message: string, sender: 'user' | 'ai') => {
+    const addMessageToChat = async (message: string, sender: 'user' | 'ai') => {
         const chatMessagesContainer = document.getElementById('chat-messages') as HTMLElement;
         const messageEl = document.createElement('div');
         messageEl.classList.add('message', sender === 'ai' ? 'ai-message' : 'user-message');
@@ -472,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sender === 'ai') {
              // Don't speak intermediate messages like "Searching..."
             if (!message.startsWith("Searching for")) {
-                speakText(message);
+                await speakText(message);
             }
         }
     };
@@ -535,7 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!userInput) return;
 
             window.speechSynthesis.cancel();
-            addMessageToChat(userInput, 'user');
+            await addMessageToChat(userInput, 'user');
             chatInput.value = '';
             typingIndicator.classList.remove('hidden');
 
@@ -569,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     if (args.searchQuery) {
-                       addMessageToChat(`Searching for '${args.searchQuery}'...`, 'ai');
+                       await addMessageToChat(`Searching for '${args.searchQuery}'...`, 'ai');
                     }
                     
                     // Call the local function that implements the tool
@@ -591,11 +598,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 // Display the final text response from the AI
-                addMessageToChat(response.text, 'ai');
+                await addMessageToChat(response.text, 'ai');
 
             } catch (error) {
                 console.error("AI Chat Error:", error);
-                addMessageToChat("Sorry, I'm having trouble connecting right now.", 'ai');
+                await addMessageToChat("Sorry, I'm having trouble connecting right now.", 'ai');
             } finally {
                 typingIndicator.classList.add('hidden');
             }
@@ -618,7 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
             aiChatModal.classList.remove('hidden');
         }
         
-        addMessageToChat(message, 'ai');
+        await addMessageToChat(message, 'ai');
         
         // Also send the alert to the AI model's history so it has context
         if (activeChat) {
@@ -627,7 +634,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // The model's response will be what it says to the user next.
                 const systemMessageForAI = `System Alert Triggered: ${message}. How should I respond to the user about this?`;
                 const response = await activeChat.sendMessage({ message: systemMessageForAI });
-                addMessageToChat(response.text, 'ai');
+                await addMessageToChat(response.text, 'ai');
             } catch (error) {
                 console.error("Error sending system alert to AI:", error);
             }
@@ -859,6 +866,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const setupEventListeners = () => {
         // Language switcher
+        const languageSelect = document.getElementById('language-select') as HTMLSelectElement;
         languageSelect.addEventListener('change', (e) => {
             const lang = (e.target as HTMLSelectElement).value;
             updateLanguage(lang);
@@ -866,6 +874,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Settings panel toggle
+        const settingsPanel = document.getElementById('settings-panel') as HTMLElement;
+        const hamburgerMenu = document.getElementById('hamburger-menu') as HTMLButtonElement;
+        const blinkingDot = hamburgerMenu.querySelector('.blinking-dot') as HTMLElement;
         hamburgerMenu.addEventListener('click', () => {
             settingsPanel.classList.toggle('open');
             blinkingDot.classList.add('hide');
@@ -877,6 +888,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // AI Chat modal toggle
+        const aiAssistantBtn = document.getElementById('ai-assistant') as HTMLButtonElement;
+        const aiChatModal = document.getElementById('ai-chat-modal') as HTMLElement;
         aiAssistantBtn.addEventListener('click', () => {
             aiChatModal.classList.remove('hidden');
         });
@@ -895,8 +908,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-
         // Voice response toggle
+        const voiceResponseToggle = document.getElementById('toggle-voice-response') as HTMLInputElement;
         voiceResponseToggle.addEventListener('change', () => {
             isVoiceResponseEnabled = voiceResponseToggle.checked;
             localStorage.setItem('isVoiceResponseEnabled', String(isVoiceResponseEnabled));
