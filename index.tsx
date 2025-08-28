@@ -199,6 +199,8 @@ const loadSpeechVoices = () => {
     availableVoices = window.speechSynthesis.getVoices();
     if(availableVoices.length > 0) {
         console.log(`${availableVoices.length} speech synthesis voices loaded.`);
+    } else {
+        console.warn("Speech synthesis voices array is empty. This may happen on first load.");
     }
 };
 
@@ -225,16 +227,26 @@ const speakText = (text: string) => {
     };
     const targetLang = langMap[currentLang] || 'en-US';
 
+    // JIT check for voices if the initial load hasn't populated the array yet.
+    // This is a crucial failsafe.
+    if (availableVoices.length === 0) {
+        availableVoices = window.speechSynthesis.getVoices();
+    }
+    
     // Find the best available voice for the target language.
-    const voice = availableVoices.find(v => v.lang === targetLang) ||
-                  availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+    let voice = availableVoices.find(v => v.lang === targetLang);
+    if (!voice) {
+        voice = availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+    }
 
     if (voice) {
         utterance.voice = voice;
+        // Explicitly set the lang property to match the chosen voice.
+        utterance.lang = voice.lang;
     } else {
-        // This is the crucial fallback. If no specific voice is found, we don't
+        // This is the critical fallback. If no specific voice is found, we do NOT
         // set utterance.voice or utterance.lang. This lets the browser use its
-        // default voice and PREVENTS the error.
+        // default voice and PREVENTS the "language-unavailable" error.
         console.warn(`Speech synthesis voice for lang '${targetLang}' not found. Using browser default.`);
     }
 
@@ -244,10 +256,12 @@ const speakText = (text: string) => {
     utterance.onerror = (event) => {
         // Provide more detailed error information for debugging.
         console.error('SpeechSynthesisUtterance.onerror:', {
-            error: event.error,
+            error: (event as any).error, // The error string, e.g., "language-unavailable"
             text: utterance.text.substring(0, 100) + '...',
             requestedLang: targetLang,
-            usedVoice: utterance.voice ? { name: utterance.voice.name, lang: utterance.voice.lang } : 'default (none found)'
+            usedVoice: utterance.voice ? { name: utterance.voice.name, lang: utterance.voice.lang } : 'default (none found)',
+            // Log available voices to help diagnose the issue
+            availableVoices: availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default}))
         });
     };
 
@@ -296,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
         simulateDriverEmotion();
         simulateVehicleOBD();
 
-        // Load speech synthesis voices
+        // Load speech synthesis voices. This is asynchronous, so we also listen for the event.
         loadSpeechVoices();
         if (speechSynthesis.onvoiceschanged !== undefined) {
             speechSynthesis.onvoiceschanged = loadSpeechVoices;
