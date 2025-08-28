@@ -680,11 +680,24 @@ function clearRoute() {
 
 async function shareRoute() {
     if (!currentRouteCoords) return;
+
+    // Analyze route for traffic and incidents
+    const routePolyline = L.polyline(currentRouteCoords);
+    const bounds = routePolyline.getBounds();
+    const incidentsOnRoute = wazeIncidents.filter(incident => bounds.contains(L.latLng(incident.lat, incident.lng)));
+    
+    // Simple traffic analysis: check traffic of roads that might be on the route.
+    // In a real app, this would be a more complex analysis.
+    const trafficOnRoute = mockTrafficData.some(road => road.traffic === 'heavy') ? 'heavy'
+        : mockTrafficData.some(road => road.traffic === 'moderate') ? 'moderate' : 'clear';
+
+    const incidentIds = incidentsOnRoute.map(i => i.id).join(',');
     const routeString = currentRouteCoords.map(c => c.join(',')).join(';');
-    const url = `${window.location.origin}${window.location.pathname}?route=${encodeURIComponent(routeString)}`;
+    const url = `${window.location.origin}${window.location.pathname}?route=${encodeURIComponent(routeString)}&incidents=${incidentIds}&traffic=${trafficOnRoute}`;
+
     const shareData = {
         title: 'Sadak Sathi Route',
-        text: 'Check out this route I planned on Sadak Sathi!',
+        text: `Check out my route on Sadak Sathi! Traffic is currently ${trafficOnRoute}. Heads up, there is ${incidentsOnRoute.length} incident(s) reported along the way.`,
         url: url
     };
     const shareBtn = document.getElementById('share-route-btn')!;
@@ -746,6 +759,9 @@ function handleUrlParameters() {
     const params = new URLSearchParams(window.location.search);
     const routeParam = params.get('route');
     const locationParam = params.get('location');
+    const incidentsParam = params.get('incidents');
+    const trafficParam = params.get('traffic');
+
 
     if (routeParam) {
         const coords = routeParam.split(';').map(pair => {
@@ -755,9 +771,29 @@ function handleUrlParameters() {
         currentRouteCoords = coords;
         const routePolyline = L.polyline(coords, { color: '#3498db', weight: 6 });
         routeLayer.addLayer(routePolyline);
-        map.flyToBounds(routePolyline.getBounds().pad(0.1));
+        const bounds = routePolyline.getBounds();
+        map.flyToBounds(bounds.pad(0.1));
         document.getElementById('route-finder-panel')!.classList.remove('hidden');
         document.getElementById('share-route-btn')!.classList.remove('hidden');
+
+        // Display shared traffic and incident info
+        const routeDetails = document.getElementById('route-details')!;
+        let detailsHtml = '';
+        if (trafficParam) {
+            detailsHtml += `<p>Shared route traffic: <strong>${trafficParam}</strong>.</p>`;
+        }
+        if (incidentsParam) {
+            const incidentIds = incidentsParam.split(',').map(Number);
+            detailsHtml += `<p><strong>${incidentIds.length} incident(s)</strong> on this route.</p>`;
+            // Highlight incidents
+            incidentLayer.eachLayer((layer: any) => {
+                 if (incidentIds.includes(layer.incidentId)) {
+                     layer.openPopup();
+                 }
+            });
+        }
+        routeDetails.innerHTML = detailsHtml;
+
     } else if (locationParam) {
         const [lat, lng] = locationParam.split(',').map(Number);
         if (!isNaN(lat) && !isNaN(lng)) {
@@ -900,32 +936,46 @@ async function handleChatMessage() {
     typingIndicator.classList.remove('hidden');
 
     try {
-        // 1. Gather detailed map context
+        // 1. Gather detailed map and app context
         const bounds = map.getBounds();
         const mapCenter = map.getCenter();
         const mapZoom = map.getZoom();
+        const currentMode = document.getElementById('app-container')!.dataset.mode;
 
         const visiblePois = pois.filter(poi => bounds.contains(L.latLng(poi.lat, poi.lng)));
         const visibleIncidents = wazeIncidents.filter(incident => bounds.contains(L.latLng(incident.lat, incident.lng)));
 
-        let contextString = `Current map context:\n- Map Center: ${mapCenter.lat.toFixed(4)}, ${mapCenter.lng.toFixed(4)}\n- Zoom Level: ${mapZoom}\n`;
+        let contextString = `Current app state and map context:\n- User Mode: ${currentMode}\n- Map Center: ${mapCenter.lat.toFixed(4)}, ${mapCenter.lng.toFixed(4)}\n- Zoom Level: ${mapZoom}\n`;
+        
         if (currentUserPosition) {
             contextString += `- User's current location: ${currentUserPosition.lat.toFixed(4)}, ${currentUserPosition.lng.toFixed(4)}\n`;
         }
 
+        if (currentRouteCoords) {
+            const fromInput = (document.getElementById('from-input') as HTMLInputElement).value;
+            const toInput = (document.getElementById('to-input') as HTMLInputElement).value;
+            contextString += `- Active Route: From "${fromInput}" to "${toInput}".\n`;
+        }
+
+        if (mockTrafficData.length > 0) {
+            contextString += "- Current Traffic Conditions:\n";
+            mockTrafficData.forEach(traffic => {
+                contextString += `  - ${traffic.roadName}: ${traffic.traffic}\n`;
+            });
+        }
+
         if (visiblePois.length > 0) {
-            contextString += "- Visible POIs:\n";
+            contextString += "- Visible POIs on map:\n";
             visiblePois.forEach(poi => {
-                contextString += `  - Name: ${poi.name} (Type: ${poi.type}, Status: ${poi.status})\n`;
+                contextString += `  - Name: ${poi.name} (Type: ${poi.type}, Category: ${poi.category}, Status: ${poi.status})\n`;
             });
         }
         if (visibleIncidents.length > 0) {
-            contextString += "- Visible Incidents:\n";
+            contextString += "- Visible Incidents on map:\n";
             visibleIncidents.forEach(incident => {
                 contextString += `  - Name: ${incident.name} (Type: ${incident.type}, Status: ${incident.status})\n`;
             });
         }
-
 
         const tools: Tool[] = [{
             functionDeclarations: [
