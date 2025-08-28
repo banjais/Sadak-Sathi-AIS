@@ -930,7 +930,7 @@ const tools: Tool[] = [
         functionDeclarations: [
             {
                 name: "add_incident",
-                description: "Use this function to report a traffic incident, road closure, accident, or other hazard at the user's current location. Example phrases: 'Report traffic ahead', 'There is a crash here', 'Road is blocked'.",
+                description: "Reports a traffic incident at the user's current location. Use this for commands like 'Report traffic ahead', 'There's an accident', or 'Road is blocked'. The description should summarize the user's report (e.g., 'heavy traffic', 'accident').",
                 parameters: {
                     type: Type.OBJECT,
                     properties: {
@@ -948,7 +948,7 @@ const tools: Tool[] = [
             },
             {
                 name: "start_navigation",
-                description: "Starts navigation from the user's current location to a specified destination. The destination must be a known Point of Interest (POI). Example phrases: 'Navigate to Main Street', 'Get directions to City Hospital', 'Take me to the airport'.",
+                description: "Initiates turn-by-turn navigation from the user's current GPS location to a specified destination. Use this for commands like 'Navigate to [destination]', 'Get directions to [destination]', or 'Take me to [destination]'.",
                 parameters: {
                     type: Type.OBJECT,
                     properties: {
