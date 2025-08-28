@@ -24,19 +24,21 @@
 
         <!-- Header -->
         <header id="app-header">
-            <div class="app-title">
-                <h1>Sadak Sathi</h1>
-                <p>Your Road Companion</p>
+            <div class="header-left">
+                 <div id="gps-status-indicator" title="GPS Status: Searching..."></div>
+                <div class="app-title">
+                    <h1>Sadak Sathi</h1>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="profile-btn" class="icon-button" aria-label="Profile">
+                    <span class="material-icons">person</span>
+                </button>
             </div>
         </header>
 
-        <!-- Settings Panel (was Left Panel) -->
+        <!-- Settings Panel -->
         <aside id="settings-panel">
-            <button class="menu-item" aria-label="Profile">
-                <span class="material-icons">person</span>
-                <span class="label" data-lang-key="menu_profile">Profile</span>
-            </button>
-            <hr>
             <div class="settings-section">
                 <h3 data-lang-key="route_preferences">Route Preferences</h3>
                 <label class="setting-item">
@@ -65,16 +67,47 @@
                         <option value="fr">Français</option>
                         <option value="de">Deutsch</option>
                         <option value="zh">中文</option>
+                        <option value="ja">日本語</option>
+                        <option value="ko">한국어</option>
                         <option value="new">नेवाः</option>
                         <option value="mai">मैथिली</option>
                     </select>
                 </div>
-                <label class="setting-item">
+                <div class="setting-item">
                     <span>Dark Mode</span>
                     <button id="theme-toggle" class="icon-button" aria-label="Toggle dark mode">
                         <span class="material-icons">light_mode</span>
                     </button>
-                </label>
+                </div>
+            </div>
+            <!-- Super Admin Controls - Hidden by default -->
+            <div id="admin-theme-controls" class="settings-section hidden">
+                <hr>
+                <h3>Admin Theme Controls</h3>
+                <div class="setting-item">
+                    <label for="header-color">Header</label>
+                    <input type="color" id="header-color" data-css-var="--header-bg-color">
+                </div>
+                <div class="setting-item">
+                    <label for="footer-color">Footer</label>
+                    <input type="color" id="footer-color" data-css-var="--footer-bg-color">
+                </div>
+                 <div class="setting-item">
+                    <label for="bg-color">Background</label>
+                    <input type="color" id="bg-color" data-css-var="--bg-color">
+                </div>
+                <div class="setting-item">
+                    <label for="text-color">Text</label>
+                    <input type="color" id="text-color" data-css-var="--text-color">
+                </div>
+                <div class="setting-item">
+                    <label for="primary-color">Primary</label>
+                    <input type="color" id="primary-color" data-css-var="--primary-color">
+                </div>
+                <div class="admin-actions">
+                    <button id="save-theme-btn">Save Theme</button>
+                    <button id="reset-theme-btn">Reset</button>
+                </div>
             </div>
         </aside>
 
@@ -116,43 +149,6 @@
             </div>
         </section>
 
-        <!-- Driver Widgets Panel -->
-        <div id="driver-widgets-panel">
-            <div class="widget-item">
-                <span class="material-icons">explore</span>
-                <div class="widget-data">
-                    <span class="value">N</span>
-                    <span class="label">Compass</span>
-                </div>
-            </div>
-            <div class="widget-item">
-                <span class="material-icons">speed</span>
-                <div class="widget-data">
-                    <span class="value">60</span>
-                    <span class="label">km/h</span>
-                </div>
-            </div>
-            <div class="widget-item">
-                <span class="material-icons">thermostat</span>
-                <div class="widget-data">
-                    <span class="value">24°</span>
-                    <span class="label">Temp</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Passenger Widgets Panel -->
-        <div id="passenger-widgets-panel">
-            <button id="share-location-btn" class="widget-button">
-                <span class="material-icons">share_location</span>
-                <span data-lang-key="share_location">Share Live Location</span>
-            </button>
-            <button id="nearby-pois-btn" class="widget-button">
-                <span class="material-icons">attractions</span>
-                <span data-lang-key="nearby_pois">Nearby POIs</span>
-            </button>
-        </div>
-        
         <!-- Route Finder Trigger Button -->
         <button id="route-finder-trigger">
             <span class="material-icons">directions</span>
@@ -189,15 +185,6 @@
                 </div>
             </div>
         </div>
-
-
-        <!-- Floating Action Buttons -->
-        <button id="report-incident-btn" class="icon-button" aria-label="Report Incident">
-            <span class="material-icons">report_problem</span>
-        </button>
-        <button id="ai-assistant" class="icon-button" aria-label="AI Assistant">
-            <span class="material-icons">mic</span>
-        </button>
         
         <!-- AI Chat Modal -->
         <div id="ai-chat-modal" class="hidden">
@@ -226,21 +213,46 @@
         </div>
 
 
-        <!-- Bottom Menu -->
+        <!-- Bottom Menu / Nav -->
         <nav id="bottom-menu">
-            <div class="menu-items-container">
-                <button id="hamburger-menu" class="menu-item" aria-label="Open settings">
+            <div class="menu-left">
+                <div id="driver-cockpit">
+                    <div class="cockpit-item" id="speed-widget">
+                        <span class="value">0</span>
+                        <span class="label">km/h</span>
+                    </div>
+                    <div class="cockpit-item" id="compass-widget">
+                         <div class="compass-rose">N</div>
+                    </div>
+                     <div class="cockpit-item" id="temp-widget">
+                        <span class="value">--°</span>
+                        <span class="material-icons">thermostat</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="menu-center">
+                 <button id="hamburger-menu" class="menu-item" aria-label="Open settings">
                     <span class="blinking-dot"></span>
                     <span class="material-icons">menu</span>
-                    <span data-lang-key="menu_settings">Settings</span>
+                    <span class="label" data-lang-key="menu_settings">Settings</span>
                 </button>
                 <button id="passenger-mode-btn" class="menu-item" aria-label="Passenger Mode">
                     <span class="material-icons">people</span>
-                    <span data-lang-key="menu_passenger">Passenger</span>
+                    <span class="label" data-lang-key="menu_passenger">Passenger</span>
                 </button>
                 <button id="driver-mode-btn" class="menu-item active" aria-label="Driver Mode">
                     <span class="material-icons">navigation</span>
-                    <span data-lang-key="menu_driver">Driver</span>
+                    <span class="label" data-lang-key="menu_driver">Driver</span>
+                </button>
+            </div>
+
+            <div class="menu-right">
+                <button id="report-incident-btn" class="menu-action-button" aria-label="Report Incident">
+                    <span class="material-icons">report_problem</span>
+                </button>
+                <button id="ai-assistant" class="menu-action-button" aria-label="AI Assistant">
+                    <span class="material-icons">mic</span>
                 </button>
             </div>
         </nav>
