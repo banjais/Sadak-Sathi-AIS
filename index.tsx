@@ -194,6 +194,7 @@ let userLocationMarker: L.Marker | null = null;
 let currentUserPosition: { lat: number, lng: number, heading: number | null } | null = null;
 let currentLang = 'en';
 let currentRouteCoords: [number, number][] | null = null;
+let currentRouteInfo: { from: string, to: string } | null = null;
 let chatHistory: any[] = []; // Store chat history for context
 let highAccuracyWatchId: number | null = null;
 let lowAccuracyWatchId: number | null = null;
@@ -563,16 +564,19 @@ function populateDisplayPanel() {
 
 function makeDraggable(handleElement: HTMLElement, dragTarget: HTMLElement) {
     let isDragging = false;
-    let offsetX = 0, offsetY = 0;
     let startX = 0, startY = 0;
+    let initialX = 0, initialY = 0;
 
     const onMouseDown = (e: MouseEvent) => {
+        // Prevent drag on right-click
+        if (e.button !== 0) return;
+
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
-        offsetX = dragTarget.offsetLeft;
-        offsetY = dragTarget.offsetTop;
-        
+        initialX = dragTarget.offsetLeft;
+        initialY = dragTarget.offsetTop;
+
         // Prevent map interaction while dragging the modal
         if (handleElement.id === 'ai-chat-header') {
             map.dragging.disable();
@@ -580,28 +584,34 @@ function makeDraggable(handleElement: HTMLElement, dragTarget: HTMLElement) {
         }
 
         handleElement.style.cursor = 'grabbing';
+        dragTarget.style.cursor = 'grabbing';
+        // Use a data attribute to distinguish click from drag
+        dragTarget.dataset.dragged = 'false';
+
         document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
+        document.addEventListener('mouseup', onMouseUp, { once: true });
     };
 
     const onMouseMove = (e: MouseEvent) => {
         if (!isDragging) return;
+        e.preventDefault(); // Prevent text selection
 
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
 
-        // Mark as dragged if moved more than a few pixels
+        // Set dragged to true only if mouse has moved a certain threshold
         if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-             handleElement.dataset.dragged = 'true';
+            dragTarget.dataset.dragged = 'true';
         }
-        
-        dragTarget.style.left = `${offsetX + dx}px`;
-        dragTarget.style.top = `${offsetY + dy}px`;
+
+        // Calculate new position
+        dragTarget.style.left = `${initialX + dx}px`;
+        dragTarget.style.top = `${initialY + dy}px`;
     };
 
     const onMouseUp = () => {
         isDragging = false;
-        
+
         // Re-enable map interaction
         if (handleElement.id === 'ai-chat-header') {
             map.dragging.enable();
@@ -609,649 +619,588 @@ function makeDraggable(handleElement: HTMLElement, dragTarget: HTMLElement) {
         }
 
         handleElement.style.cursor = 'grab';
+        dragTarget.style.cursor = 'default'; // Reset target cursor
+        if (dragTarget.id === 'ai-assistant') {
+            dragTarget.style.cursor = 'grab'; // Keep FAB cursor as grab
+        }
+
         document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
     };
 
+    // This function returns the onMouseDown handler to be attached externally
     return { onMouseDown };
 }
 
-// --- Routing Functions ---
+// --- Geolocation ---
 
-function findOptimalRoute(fromName?: string, toName?: string) {
-    clearRoute();
-    const fromInput = fromName ?? (document.getElementById('from-input') as HTMLInputElement).value;
-    const toInput = toName ?? (document.getElementById('to-input') as HTMLInputElement).value;
-    const routeDetails = document.getElementById('route-details')!;
-    
-    let fromPoi: { lat: number, lng: number } | undefined;
-    if (fromInput.toLowerCase() === 'my location' && currentUserPosition) {
-        fromPoi = { lat: currentUserPosition.lat, lng: currentUserPosition.lng };
+function initGeolocation() {
+    const options = {
+        enableHighAccuracy: true,
+        timeout: 30000, // Increased timeout
+        maximumAge: 5000 // Allow using a cached position up to 5s old
+    };
+
+    const error = (err: GeolocationPositionError) => {
+        console.warn(`Could not get location: ${err.message}`);
+        // If high accuracy fails, try low accuracy
+        if (highAccuracyWatchId !== null) {
+            navigator.geolocation.clearWatch(highAccuracyWatchId);
+            highAccuracyWatchId = null;
+            lowAccuracyWatchId = navigator.geolocation.watchPosition(updateUserLocation, () => {
+                 console.error("Low accuracy location also failed.");
+            }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 });
+        }
+    };
+
+    highAccuracyWatchId = navigator.geolocation.watchPosition(updateUserLocation, error, options);
+}
+
+function updateUserLocation(pos: GeolocationPosition) {
+    const { latitude, longitude, heading } = pos.coords;
+    currentUserPosition = { lat: latitude, lng: longitude, heading: heading };
+
+    const iconHtml = `
+        <div class="user-location-icon">
+            <div class="pulse"></div>
+            <div class="dot"></div>
+            ${heading !== null ? `<div class="heading" style="transform: translate(-50%, -100%) rotate(${heading}deg);"></div>` : ''}
+        </div>`;
+
+    if (!userLocationMarker) {
+        userLocationMarker = L.marker([latitude, longitude], {
+            icon: L.divIcon({
+                html: iconHtml,
+                className: '', // No default class
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            })
+        }).addTo(map);
+        map.flyTo([latitude, longitude], 15);
+        // Add "My Location" to POIs
+        pois.push({ id: 0, name: "My Location", lat: latitude, lng: longitude, type: 'poi', status: 'You are here', category: 'current_location' });
+
     } else {
-        fromPoi = pois.find(p => p.name.toLowerCase() === fromInput.toLowerCase());
+        userLocationMarker.setLatLng([latitude, longitude]);
+        userLocationMarker.setIcon(L.divIcon({
+            html: iconHtml,
+            className: '',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+        }));
+        const myLocationPoi = pois.find(p => p.id === 0);
+        if (myLocationPoi) {
+            myLocationPoi.lat = latitude;
+            myLocationPoi.lng = longitude;
+        }
+    }
+}
+
+
+// --- Routing ---
+
+function findOptimalRoute() {
+    const fromInput = document.getElementById('from-input') as HTMLInputElement;
+    const toInput = document.getElementById('to-input') as HTMLInputElement;
+    const fromLocationName = fromInput.value.trim();
+    const toLocationName = toInput.value.trim();
+    const routeDetailsPanel = document.getElementById('route-details')!;
+
+    const fromLocation = pois.find(p => p.name.toLowerCase() === fromLocationName.toLowerCase());
+    const toLocation = pois.find(p => p.name.toLowerCase() === toLocationName.toLowerCase());
+
+    if (fromLocationName.toLowerCase() === 'my location' && !currentUserPosition) {
+         routeDetailsPanel.innerHTML = `<p style="color: var(--danger-color);">${translations[currentLang].route_finder_error_no_start}</p>`;
+         return;
+    }
+    
+    if (!fromLocation || !toLocation) {
+        routeDetailsPanel.innerHTML = `<p style="color: var(--danger-color);">${translations[currentLang].route_finder_error}</p>`;
+        return;
     }
 
-    const toPoi = pois.find(p => p.name.toLowerCase() === toInput.toLowerCase());
+    // --- Mock route finding logic ---
+    // In a real app, this would call a routing engine API (e.g., OSRM, GraphHopper, Google Maps)
+    const startPoint = L.latLng(fromLocation.lat, fromLocation.lng);
+    const endPoint = L.latLng(toLocation.lat, toLocation.lng);
 
-    if (!fromPoi) {
-        routeDetails.innerHTML = `<p style="color: var(--danger-color);">${translations[currentLang].route_finder_error_no_start}</p>`;
-        return `Error: ${translations[currentLang].route_finder_error_no_start}`;
-    }
-    if (!toPoi) {
-        routeDetails.innerHTML = `<p style="color: var(--danger-color);">${translations[currentLang].route_finder_error}</p>`;
-        return `Error: Could not find destination ${toInput}.`;
-    }
-
-    // Mock route that deliberately intersects with a closure to show alert
-    const routeCoords: [number, number][] = [
-        [fromPoi.lat, fromPoi.lng],
-        [27.695, 85.35], // Intermediate point
-        [27.70, 85.4], // Near road closure
-        [toPoi.lat, toPoi.lng]
+    // Create a simple straight line or a slightly curved path for demo
+    const latlngs = [
+        startPoint,
+        L.latLng((startPoint.lat + endPoint.lat) / 2 + 0.01, (startPoint.lng + endPoint.lng) / 2 + 0.01), // A middle point to make it not straight
+        endPoint
     ];
-    
-    currentRouteCoords = routeCoords;
+    // --- End Mock Logic ---
 
-    const routePolyline = L.polyline(routeCoords, { color: '#3498db', weight: 6 });
-    const bounds = routePolyline.getBounds();
+    clearRoute(); // Clear previous route
     
-    // Check for incidents on route
-    let incidentOnRoute = false;
-    incidentLayer.eachLayer((layer: any) => {
-        if (bounds.contains(layer.getLatLng())) {
-             const incident = wazeIncidents.find(i => i.id === layer.incidentId);
-             if (incident && incident.type === 'closure') {
-                incidentOnRoute = true;
-                routePolyline.setStyle({ color: '#f39c12' });
-                routeDetails.innerHTML = `
-                    <div class="route-warning">
-                        <span class="material-icons">warning</span>
-                        <span>Route intersects with a road closure!</span>
-                    </div>
-                `;
+    const polyline = L.polyline(latlngs, { color: '#3498db', weight: 6, opacity: 0.8 }).addTo(routeLayer);
+    map.fitBounds(polyline.getBounds().pad(0.1));
+
+    document.getElementById('route-finder-panel')!.classList.add('hidden');
+    document.getElementById('share-route-btn')!.classList.remove('hidden');
+
+    currentRouteCoords = latlngs.map(p => [p.lat, p.lng]);
+    currentRouteInfo = { from: fromLocationName, to: toLocationName };
+
+    const { summaryMessage, incidentsOnRoute } = getRouteSummary(polyline);
+    routeDetailsPanel.innerHTML = summaryMessage;
+
+    // Highlight incidents on the route
+    if (incidentsOnRoute.length > 0) {
+        incidentLayer.eachLayer((layer: any) => {
+            if (incidentsOnRoute.some(inc => inc.id === layer.incidentId)) {
+                // You could add a special icon or animation here
                 layer.openPopup();
             }
-        }
+        });
+    }
+}
+
+function getRouteSummary(routeLine: L.Polyline): { summaryMessage: string, incidentsOnRoute: any[], trafficOnRoute: string } {
+    // Check for incidents along the route (simple proximity check for demo)
+    const routeBounds = routeLine.getBounds();
+    const incidentsOnRoute = wazeIncidents.filter(incident => {
+        const incidentLatLng = L.latLng(incident.lat, incident.lng);
+        // A more complex check like point-to-line distance would be better in a real app
+        return routeBounds.contains(incidentLatLng);
     });
 
-    if (!incidentOnRoute) {
-        routeDetails.innerHTML = `<p style="color: var(--success-color);">Optimal route found. Avoiding heavy traffic.</p>`;
+    // Check for traffic on roads intersected by the route
+    const intersectedRoads = dorGeoJson.features.filter((road: any) => {
+        const roadLine = L.geoJSON(road);
+        return routeBounds.intersects(roadLine.getBounds());
+    });
+    const trafficLevels = intersectedRoads.map((road: any) => mockTrafficData.find(t => t.roadName === road.properties.name)?.traffic);
+    let overallTraffic = "clear";
+    if (trafficLevels.includes("heavy")) overallTraffic = "heavy";
+    else if (trafficLevels.includes("moderate")) overallTraffic = "moderate";
+
+
+    let summaryMessage = `<p>Optimal route found. Traffic is currently <strong>${overallTraffic}</strong>.</p>`;
+    if (incidentsOnRoute.length > 0) {
+        summaryMessage = `
+            <div class="route-warning">
+                <span class="material-icons">warning</span>
+                <div>
+                    Heads up! Traffic is <strong>${overallTraffic}</strong>.
+                    There ${incidentsOnRoute.length === 1 ? 'is' : 'are'} <strong>${incidentsOnRoute.length}</strong> incident(s) reported along your route.
+                </div>
+            </div>`;
     }
-    
-    routeLayer.addLayer(routePolyline);
-    map.flyToBounds(bounds.pad(0.1));
-    document.getElementById('share-route-btn')!.classList.remove('hidden');
-    document.getElementById('route-finder-panel')!.classList.remove('hidden');
-    return `Route from ${fromInput} to ${toInput} has been plotted on the map.`;
+
+    return { summaryMessage, incidentsOnRoute, trafficOnRoute: overallTraffic };
 }
 
 function clearRoute() {
     routeLayer.clearLayers();
-    currentRouteCoords = null;
-    document.getElementById('route-details')!.innerHTML = '';
     document.getElementById('share-route-btn')!.classList.add('hidden');
+    document.getElementById('route-details')!.innerHTML = '';
+    const fromInput = document.getElementById('from-input') as HTMLInputElement;
+    const toInput = document.getElementById('to-input') as HTMLInputElement;
+    fromInput.value = '';
+    toInput.value = '';
+    currentRouteCoords = null;
+    currentRouteInfo = null;
 }
 
-async function shareRoute() {
-    if (!currentRouteCoords) return;
+function shareRoute() {
+    if (!currentRouteCoords || !currentRouteInfo) return;
 
-    // Analyze route for traffic and incidents
-    const routePolyline = L.polyline(currentRouteCoords);
-    const bounds = routePolyline.getBounds();
-    const incidentsOnRoute = wazeIncidents.filter(incident => bounds.contains(L.latLng(incident.lat, incident.lng)));
-    
-    // Simple traffic analysis: check traffic of roads that might be on the route.
-    // In a real app, this would be a more complex analysis.
-    const trafficOnRoute = mockTrafficData.some(road => road.traffic === 'heavy') ? 'heavy'
-        : mockTrafficData.some(road => road.traffic === 'moderate') ? 'moderate' : 'clear';
-
+    // Get summary again to ensure it's up to date
+    const routeLine = L.polyline(currentRouteCoords as L.LatLng[]);
+    const { incidentsOnRoute, trafficOnRoute } = getRouteSummary(routeLine);
     const incidentIds = incidentsOnRoute.map(i => i.id).join(',');
-    const routeString = currentRouteCoords.map(c => c.join(',')).join(';');
-    const url = `${window.location.origin}${window.location.pathname}?route=${encodeURIComponent(routeString)}&incidents=${incidentIds}&traffic=${trafficOnRoute}`;
 
-    const shareData = {
-        title: 'Sadak Sathi Route',
-        text: `Check out my route on Sadak Sathi! Traffic is currently ${trafficOnRoute}. Heads up, there is ${incidentsOnRoute.length} incident(s) reported along the way.`,
-        url: url
-    };
-    const shareBtn = document.getElementById('share-route-btn')!;
-    const originalText = shareBtn.querySelector('span:last-child')!.textContent;
-
-    try {
-        if (navigator.share) {
-            await navigator.share(shareData);
-        } else {
-            throw new Error('Web Share API not available.');
-        }
-    } catch (err) {
-        // Fallback to clipboard
-        navigator.clipboard.writeText(url).then(() => {
-            shareBtn.querySelector('span:last-child')!.textContent = translations[currentLang].link_copied;
-            setTimeout(() => {
-                shareBtn.querySelector('span:last-child')!.textContent = originalText;
-            }, 2000);
-        });
-    }
-}
-
-async function shareLiveLocation() {
-    if (!currentUserPosition) {
-        // Maybe show a toast/alert later
-        console.error("Current location not available to share.");
-        return;
-    }
-    const { lat, lng } = currentUserPosition;
-    const url = `${window.location.origin}${window.location.pathname}?location=${lat.toFixed(6)},${lng.toFixed(6)}`;
-    
-    const shareData = {
-        title: 'Sadak Sathi Location',
-        text: 'I am here!',
-        url: url
-    };
-    const shareBtn = document.getElementById('share-location-btn')!;
-    const originalText = shareBtn.querySelector('span:last-child')!.textContent;
-
-    try {
-        if (navigator.share) {
-            await navigator.share(shareData);
-        } else {
-            throw new Error('Web Share API not available.');
-        }
-    } catch (err) {
-        // Fallback to clipboard
-        navigator.clipboard.writeText(url).then(() => {
-            const textElement = shareBtn.querySelector('span:last-child')!;
-            textElement.textContent = translations[currentLang].link_copied;
-            setTimeout(() => {
-                textElement.textContent = originalText;
-            }, 2000);
-        });
-    }
-}
-
-function handleUrlParameters() {
-    const params = new URLSearchParams(window.location.search);
-    const routeParam = params.get('route');
-    const locationParam = params.get('location');
-    const incidentsParam = params.get('incidents');
-    const trafficParam = params.get('traffic');
+    const routeString = `${currentRouteInfo.from};${currentRouteInfo.to}`;
+    const url = new URL(window.location.href);
+    url.searchParams.set('route', routeString);
+    if (incidentIds) url.searchParams.set('incidents', incidentIds);
+    if (trafficOnRoute) url.searchParams.set('traffic', trafficOnRoute);
 
 
-    if (routeParam) {
-        const coords = routeParam.split(';').map(pair => {
-            const [lat, lng] = pair.split(',').map(Number);
-            return [lat, lng] as [number, number];
-        });
-        currentRouteCoords = coords;
-        const routePolyline = L.polyline(coords, { color: '#3498db', weight: 6 });
-        routeLayer.addLayer(routePolyline);
-        const bounds = routePolyline.getBounds();
-        map.flyToBounds(bounds.pad(0.1));
-        document.getElementById('route-finder-panel')!.classList.remove('hidden');
-        document.getElementById('share-route-btn')!.classList.remove('hidden');
+    const shareText = `Check out my route on Sadak Sathi from ${currentRouteInfo.from} to ${currentRouteInfo.to}! Traffic is currently ${trafficOnRoute}. Heads up, there ${incidentsOnRoute.length === 1 ? 'is 1 incident' : `are ${incidentsOnRoute.length} incidents`} reported along the way. ${url.toString()}`;
 
-        // Display shared traffic and incident info
-        const routeDetails = document.getElementById('route-details')!;
-        let detailsHtml = '';
-        if (trafficParam) {
-            detailsHtml += `<p>Shared route traffic: <strong>${trafficParam}</strong>.</p>`;
-        }
-        if (incidentsParam) {
-            const incidentIds = incidentsParam.split(',').map(Number);
-            detailsHtml += `<p><strong>${incidentIds.length} incident(s)</strong> on this route.</p>`;
-            // Highlight incidents
-            incidentLayer.eachLayer((layer: any) => {
-                 if (incidentIds.includes(layer.incidentId)) {
-                     layer.openPopup();
-                 }
-            });
-        }
-        routeDetails.innerHTML = detailsHtml;
-
-    } else if (locationParam) {
-        const [lat, lng] = locationParam.split(',').map(Number);
-        if (!isNaN(lat) && !isNaN(lng)) {
-            map.flyTo([lat, lng], 16);
-            L.circleMarker([lat, lng], { radius: 8, color: '#e74c3c', fillOpacity: 0.8, stroke: false }).addTo(map)
-                .bindPopup("Shared Location").openPopup();
-        }
-    }
-}
-
-// --- Geolocation Functions ---
-
-function initGeolocation() {
-    if (!navigator.geolocation) {
-        console.error("Geolocation is not supported by this browser.");
-        return;
-    }
-    
-    const onHighAccuracyError = (err: GeolocationPositionError) => {
-        console.warn(`High accuracy geolocation failed: ${err.message}. Falling back to low accuracy.`);
-        onLocationError(err);
-        // Stop watching high accuracy and start low accuracy
-        if (highAccuracyWatchId !== null) navigator.geolocation.clearWatch(highAccuracyWatchId);
-        highAccuracyWatchId = null;
-        
-        if (lowAccuracyWatchId === null) {
-             lowAccuracyWatchId = navigator.geolocation.watchPosition(onLocationFound, onLocationError, {
-                enableHighAccuracy: false,
-                timeout: 20000,
-                maximumAge: 5000
-            });
-        }
-    };
-
-    // First, try for high accuracy
-    highAccuracyWatchId = navigator.geolocation.watchPosition(onLocationFound, onHighAccuracyError, {
-        enableHighAccuracy: true,
-        timeout: 30000,
-        maximumAge: 5000
-    });
-}
-
-function onLocationFound(position: GeolocationPosition) {
-    const { latitude, longitude, heading } = position.coords;
-    currentUserPosition = { lat: latitude, lng: longitude, heading: heading };
-    
-    const icon = L.divIcon({
-        className: 'user-location-icon',
-        html: `<div class="pulse"></div><div class="dot"></div><div class="heading"></div>`,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11]
-    });
-
-    if (!userLocationMarker) {
-        userLocationMarker = L.marker([latitude, longitude], { icon: icon }).addTo(map);
-        map.flyTo([latitude, longitude], 16);
+    if (navigator.share) {
+        navigator.share({
+            title: 'My Sadak Sathi Route',
+            text: shareText,
+            url: url.toString()
+        }).catch(console.error);
     } else {
-        userLocationMarker.setLatLng([latitude, longitude]);
+        navigator.clipboard.writeText(url.toString()).then(() => {
+            showToast(translations[currentLang].link_copied);
+        });
+    }
+}
+
+function showToast(message: string) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// --- AI Assistant ---
+
+const tools: Tool[] = [
+    {
+        functionDeclarations: [
+            {
+                name: "add_incident",
+                description: "Adds a new incident report to the map at the user's current location or a specified location.",
+                parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                        description: {
+                            type: Type.STRING,
+                            description: "A description of the incident (e.g., 'heavy traffic', 'accident', 'pothole')."
+                        },
+                        location: {
+                            type: Type.STRING,
+                            description: "Optional location of the incident if not the user's current location."
+                        }
+                    },
+                    required: ["description"]
+                }
+            },
+            {
+                name: "start_navigation",
+                description: "Starts navigation by finding and displaying the optimal route from the user's current location to a specified destination.",
+                parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                        destination_name: {
+                            type: Type.STRING,
+                            description: "The name of the destination point of interest (POI)."
+                        }
+                    },
+                    required: ["destination_name"]
+                }
+            },
+            {
+                name: "find_nearby_pois",
+                description: "Finds points of interest (POIs) of a specific category near the user's current location.",
+                parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                        category: {
+                            type: Type.STRING,
+                            description: "The category of POI to search for (e.g., 'coffee shop', 'atm', 'hospital')."
+                        }
+                    },
+                    required: ["category"]
+                }
+            }
+        ]
+    }
+];
+
+async function handleChatMessage(userMessageOverride?: string) {
+    const chatInput = document.getElementById('chat-input') as HTMLInputElement;
+    const userMessage = userMessageOverride || chatInput.value;
+    if (!userMessage.trim()) return;
+
+    addMessageToChat('user', userMessage);
+    chatInput.value = '';
+    document.getElementById('typing-indicator')!.classList.remove('hidden');
+
+    const visiblePois = getVisibleFeatures(poiLayer, 'poiId', pois);
+    const visibleIncidents = getVisibleFeatures(incidentLayer, 'incidentId', wazeIncidents);
+    const currentMode = document.getElementById('app-container')!.dataset.mode;
+    
+    const activeRoute = currentRouteInfo ? `An active route is set from ${currentRouteInfo.from} to ${currentRouteInfo.to}.` : "No active route.";
+
+    const context = `
+        The user is currently in "${currentMode}" mode.
+        ${activeRoute}
+        Current traffic on major roads: ${JSON.stringify(mockTrafficData)}.
+        Visible points of interest on the map: ${JSON.stringify(visiblePois.map(p => ({ name: p.name, category: p.category, status: p.status })))}.
+        Visible incidents on the map: ${JSON.stringify(visibleIncidents.map(i => ({ name: i.name, type: i.type, status: i.status })))}.
+    `;
+    
+    const driverPersona = `You are a voice-first, hands-free AI co-pilot for a driver. Be concise. Your primary functions are navigation and reporting incidents.`;
+    const passengerPersona = `You are a helpful AI tour guide for a passenger. Your primary functions are finding interesting places and providing information about the surroundings.`;
+    const systemInstruction = (currentMode === 'driver' ? driverPersona : passengerPersona) + context;
+
+
+    try {
+        // Fix: `tools` and `systemInstruction` must be in a `config` object.
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [...chatHistory, { role: "user", parts: [{ text: userMessage }] }],
+            config: {
+                tools: tools,
+                systemInstruction: systemInstruction,
+            },
+        });
+
+        document.getElementById('typing-indicator')!.classList.add('hidden');
+
+        const call = response.candidates?.[0]?.content?.parts?.[0]?.functionCall;
+        if (call) {
+            const { name, args } = call;
+            let functionResponse = '';
+
+            if (name === 'add_incident') {
+                if (!currentUserPosition) {
+                    functionResponse = "Sorry, I can't determine your location to add an incident.";
+                } else {
+                    // Fix: Cast `args.description` from `unknown` to `string` to satisfy type requirements.
+                    const description = String(args.description);
+                    const newIncident = {
+                        id: wazeIncidents.length + pois.length + 1,
+                        name: description,
+                        lat: currentUserPosition.lat,
+                        lng: currentUserPosition.lng,
+                        type: 'user_report',
+                        status: 'Just reported'
+                    };
+                    wazeIncidents.push(newIncident);
+                    addIncidentLayer(wazeIncidents);
+                    populateDisplayPanel();
+                    functionResponse = `OK, I've reported "${description}" at your current location.`;
+                }
+            } else if (name === 'start_navigation') {
+                // Fix: Cast `args.destination_name` from `unknown` to `string` before calling `.toLowerCase()`.
+                const destinationName = String(args.destination_name);
+                const destination = pois.find(p => p.name.toLowerCase() === destinationName.toLowerCase());
+                if (destination && currentUserPosition) {
+                    (document.getElementById('from-input') as HTMLInputElement).value = 'My Location';
+                    (document.getElementById('to-input') as HTMLInputElement).value = destination.name;
+                    findOptimalRoute();
+                    functionResponse = `Starting navigation to ${destination.name}.`;
+                } else {
+                    functionResponse = `Sorry, I couldn't find a destination named "${destinationName}".`;
+                }
+            } else if (name === 'find_nearby_pois') {
+                 if (!currentUserPosition) {
+                    functionResponse = "Sorry, I can't determine your location to find nearby places.";
+                } else {
+                    // Fix: Cast `args.category` from `unknown` to `string` before calling `.toLowerCase()`.
+                    const categoryArg = String(args.category);
+                    const category = categoryArg.toLowerCase().replace(/s$/, ''); // singularize
+                    const nearby = pois
+                        .filter(p => p.category.includes(category))
+                        .map(p => ({...p, distance: getDistance(currentUserPosition!, { lat: p.lat, lng: p.lng }) }))
+                        .filter(p => p.distance < 2) // within 2km
+                        .sort((a,b) => a.distance - b.distance)
+                        .slice(0, 5);
+                    
+                    if (nearby.length > 0) {
+                        functionResponse = `Here are some nearby ${categoryArg}:`;
+                        addMessageToChat('ai', functionResponse, nearby);
+                        return; // Exit here as we've added a custom message
+                    } else {
+                        functionResponse = `Sorry, I couldn't find any ${categoryArg} nearby.`;
+                    }
+                }
+            } else {
+                functionResponse = `Unknown tool: ${name}`;
+            }
+
+            addMessageToChat('ai', functionResponse);
+
+        } else {
+            // Handle text response
+            const text = response.text.trim();
+            addMessageToChat('ai', text);
+        }
+
+    } catch (error) {
+        console.error("AI chat error:", error);
+        addMessageToChat('ai', "Sorry, I'm having trouble connecting right now.");
+        document.getElementById('typing-indicator')!.classList.add('hidden');
+    }
+}
+
+function addMessageToChat(sender: 'user' | 'ai', text: string, poiSuggestions: any[] = []) {
+    const chatMessages = document.getElementById('chat-messages')!;
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+    
+    const p = document.createElement('p');
+    p.textContent = text;
+    messageDiv.appendChild(p);
+    
+    // Add POI suggestion buttons if any
+    if (poiSuggestions.length > 0) {
+        const suggestionsContainer = document.createElement('div');
+        suggestionsContainer.className = 'poi-suggestions';
+        poiSuggestions.forEach(poi => {
+            const btn = document.createElement('button');
+            btn.className = 'poi-suggestion-btn';
+            btn.textContent = `${poi.name} (${poi.distance.toFixed(1)} km)`;
+            btn.onclick = () => {
+                (document.getElementById('from-input') as HTMLInputElement).value = 'My Location';
+                (document.getElementById('to-input') as HTMLInputElement).value = poi.name;
+                findOptimalRoute();
+                document.getElementById('ai-chat-modal')!.classList.add('hidden');
+            };
+            suggestionsContainer.appendChild(btn);
+        });
+        messageDiv.appendChild(suggestionsContainer);
     }
     
-    const headingElement = userLocationMarker.getElement()?.querySelector('.heading') as HTMLElement;
-    if (headingElement && heading !== null) {
-        headingElement.style.transform = `translate(-50%, -100%) rotate(${heading}deg)`;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Update history, keeping it to a reasonable size
+    chatHistory.push({ role: sender, parts: [{ text }] });
+    if (chatHistory.length > 10) {
+        chatHistory.splice(0, 2); // Remove oldest user/ai pair
     }
 }
 
-function onLocationError(error: GeolocationPositionError) {
-    let message = "Could not get location: ";
-    switch (error.code) {
-        case error.PERMISSION_DENIED:
-            message += "Permission denied.";
-            break;
-        case error.POSITION_UNAVAILABLE:
-            message += "Location information is unavailable.";
-            break;
-        case error.TIMEOUT:
-            message += "The request to get user location timed out.";
-            break;
-        default:
-             message += "An unknown error occurred.";
-             break;
-    }
-    console.error(message);
+function getVisibleFeatures(layerGroup: L.FeatureGroup, idKey: string, sourceArray: any[]): any[] {
+    const visible: any[] = [];
+    const mapBounds = map.getBounds();
+    layerGroup.eachLayer((layer: any) => {
+        if (mapBounds.contains(layer.getLatLng())) {
+            const feature = sourceArray.find(item => item.id === layer[idKey]);
+            if (feature) {
+                visible.push(feature);
+            }
+        }
+    });
+    return visible;
 }
 
-// --- AI & Voice Functions ---
+
+// --- Speech Recognition ---
 function initSpeechRecognition() {
     if (!SpeechRecognition) {
-        console.error("Speech Recognition not supported in this browser.");
+        console.warn("Speech Recognition not supported in this browser.");
         return;
     }
     recognition = new SpeechRecognition();
     recognition.continuous = false;
-    const langMap: { [key: string]: string } = {
-        en: 'en-US',
-        np: 'ne-NP',
-        hi: 'hi-IN'
-    };
-    recognition.lang = langMap[currentLang] || 'en-US';
+    recognition.lang = 'en-US';
     recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-    const aiAssistantBtn = document.getElementById('ai-assistant')!;
-    const aiChatModal = document.getElementById('ai-chat-modal')!;
+    const aiBtn = document.getElementById('ai-assistant')!;
     const chatInput = document.getElementById('chat-input') as HTMLInputElement;
 
     recognition.onstart = () => {
-        aiAssistantBtn.classList.add('listening');
-        aiChatModal.classList.remove('hidden');
+        aiBtn.classList.add('listening');
         chatInput.setAttribute('data-lang-key-placeholder', 'ai_chat_placeholder_listening');
         updateLanguage();
-    };
-
-    recognition.onend = () => {
-        aiAssistantBtn.classList.remove('listening');
-        const currentMode = document.getElementById('app-container')!.dataset.mode;
-        chatInput.setAttribute('data-lang-key-placeholder', currentMode === 'driver' ? 'ai_chat_placeholder' : 'ai_chat_placeholder_passenger');
-        updateLanguage();
+        document.getElementById('ai-chat-modal')!.classList.remove('hidden');
+        addMessageToChat('ai', translations[currentLang].ai_chat_placeholder_listening);
     };
 
     recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
-        chatInput.value = transcript;
-        handleChatMessage();
+        // Remove the "Listening..." message before showing the user's message
+        const messages = document.getElementById('chat-messages')!;
+        if (messages.lastChild) messages.removeChild(messages.lastChild);
+        
+        handleChatMessage(transcript);
+    };
+
+    recognition.onspeechend = () => {
+        recognition.stop();
+    };
+
+    recognition.onend = () => {
+        aiBtn.classList.remove('listening');
+        const currentMode = document.getElementById('app-container')!.dataset.mode;
+        const placeholderKey = currentMode === 'passenger' ? 'ai_chat_placeholder_passenger' : 'ai_chat_placeholder';
+        chatInput.setAttribute('data-lang-key-placeholder', placeholderKey);
+        updateLanguage();
     };
 
     recognition.onerror = (event: any) => {
-        let errorMessage = translations[currentLang].voice_error_mic_problem;
+        let errorMessage = translations[currentLang].voice_error_no_speech;
         if (event.error === 'no-speech' || event.error === 'audio-capture') {
-            errorMessage = translations[currentLang].voice_error_no_speech;
+             errorMessage = translations[currentLang].voice_error_mic_problem;
         }
-        addMessageToUI(errorMessage, 'ai');
+        addMessageToChat('ai', errorMessage);
+        console.error("Speech recognition error:", event.error);
     };
 }
 
+// --- URL Handling & Simulation ---
 
-async function handleChatMessage() {
-    const input = document.getElementById('chat-input') as HTMLInputElement;
-    const message = input.value.trim();
-    if (!message) return;
+function handleUrlParameters() {
+    const params = new URLSearchParams(window.location.search);
+    const routeParam = params.get('route');
+    const incidentsParam = params.get('incidents');
+    const trafficParam = params.get('traffic');
 
-    addMessageToUI(message, 'user');
-    input.value = '';
-    
-    const typingIndicator = document.getElementById('typing-indicator')!;
-    typingIndicator.classList.remove('hidden');
-
-    try {
-        // 1. Gather detailed map and app context
-        const bounds = map.getBounds();
-        const mapCenter = map.getCenter();
-        const mapZoom = map.getZoom();
-        const currentMode = document.getElementById('app-container')!.dataset.mode;
-
-        const visiblePois = pois.filter(poi => bounds.contains(L.latLng(poi.lat, poi.lng)));
-        const visibleIncidents = wazeIncidents.filter(incident => bounds.contains(L.latLng(incident.lat, incident.lng)));
-        
-        const personaInstruction = currentMode === 'driver'
-            ? "You are a helpful, voice-activated driving assistant named Sadak Sathi. Your primary role is to assist the user with hands-free navigation, finding places, and reporting traffic incidents. Keep your responses concise, clear, and action-oriented."
-            : "You are a helpful AI assistant for a passenger. Your role is to provide information about nearby points of interest, help plan trips, and answer questions about the route and surroundings.";
-
-        let contextString = `${personaInstruction}\n\nCurrent app state and map context:\n- User Mode: ${currentMode}\n- Map Center: ${mapCenter.lat.toFixed(4)}, ${mapCenter.lng.toFixed(4)}\n- Zoom Level: ${mapZoom}\n`;
-        
-        if (currentUserPosition) {
-            contextString += `- User's current location: ${currentUserPosition.lat.toFixed(4)}, ${currentUserPosition.lng.toFixed(4)}\n`;
-        }
-
-        if (currentRouteCoords) {
-            const fromInput = (document.getElementById('from-input') as HTMLInputElement).value;
-            const toInput = (document.getElementById('to-input') as HTMLInputElement).value;
-            contextString += `- Active Route: From "${fromInput}" to "${toInput}".\n`;
-        }
-
-        if (mockTrafficData.length > 0) {
-            contextString += "- Current Traffic Conditions:\n";
-            mockTrafficData.forEach(traffic => {
-                contextString += `  - ${traffic.roadName}: ${traffic.traffic}\n`;
-            });
-        }
-
-        if (visiblePois.length > 0) {
-            contextString += "- Visible POIs on map:\n";
-            visiblePois.forEach(poi => {
-                contextString += `  - Name: ${poi.name} (Type: ${poi.type}, Category: ${poi.category}, Status: ${poi.status})\n`;
-            });
-        }
-        if (visibleIncidents.length > 0) {
-            contextString += "- Visible Incidents on map:\n";
-            visibleIncidents.forEach(incident => {
-                contextString += `  - Name: ${incident.name} (Type: ${incident.type}, Status: ${incident.status})\n`;
-            });
-        }
-
-        const tools: Tool[] = [{
-            functionDeclarations: [
-                {
-                    name: "find_poi",
-                    description: "Find a point of interest (POI) like a bridge, hospital, or landmark on the map.",
-                    parameters: {
-                        type: Type.OBJECT,
-                        properties: {
-                            poi_name: { type: Type.STRING, description: "The name of the POI to find." }
-                        },
-                        required: ["poi_name"]
-                    }
-                },
-                {
-                    name: "add_incident",
-                    description: "Add a new incident like a traffic jam, accident, or road closure to the map. If the user says 'here' or doesn't specify a location, the location_name can be omitted, and the user's GPS location will be used.",
-                    parameters: {
-                        type: Type.OBJECT,
-                        properties: {
-                            incident_type: { type: Type.STRING, description: "The type of incident (e.g., 'accident', 'traffic', 'closure')." },
-                            location_name: { type: Type.STRING, description: "The name of the location where the incident occurred. Omit if the user says 'here' or similar." }
-                        },
-                        required: ["incident_type"]
-                    }
-                },
-                {
-                    name: "start_navigation",
-                    description: "Start navigation to a destination. The starting point is always the user's current location.",
-                    parameters: {
-                        type: Type.OBJECT,
-                        properties: {
-                            destination_name: { type: Type.STRING, description: "The name of the destination POI." }
-                        },
-                        required: ["destination_name"]
-                    }
-                },
-                {
-                    name: "find_nearby_pois",
-                    description: "Finds points of interest of a specific type (e.g., 'coffee shop', 'atm', 'restaurant') near the user's current location. This is useful for passenger requests.",
-                    parameters: {
-                        type: Type.OBJECT,
-                        properties: {
-                            poi_type: { type: Type.STRING, description: "The type or category of the POI to search for, like 'coffee' or 'restaurant'." }
-                        },
-                        required: ["poi_type"]
-                    }
-                }
-            ]
-        }];
-
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: { role: 'user', parts: [{ text: message }] },
-            config: { 
-                tools: tools,
-                systemInstruction: contextString // Pass context here
-            },
-        });
-        
-        const call = response.candidates?.[0]?.content?.parts[0]?.functionCall;
-
-        if (call) {
-            const { name, args } = call;
-            let result: any;
-            if (name === 'find_poi') {
-                 result = findPoiOnMap(args.poi_name as string);
-            } else if (name === 'add_incident') {
-                result = addIncidentToMap(args.incident_type as string, args.location_name as string | undefined);
-            } else if (name === 'start_navigation') {
-                result = findOptimalRoute("My Location", args.destination_name as string);
-            } else if (name === 'find_nearby_pois') {
-                const poiType = args.poi_type as string;
-                const foundPois = findNearbyPoisOnMap(poiType);
-                if (foundPois.length > 0) {
-                    addMessageToUI(`I found these ${poiType}s near you:`, 'ai', foundPois);
-                } else {
-                    addMessageToUI(`Sorry, I couldn't find any ${poiType}s nearby.`, 'ai');
-                }
-                typingIndicator.classList.add('hidden');
-                return; // Important: exit after handling this tool
-            }
+    if (routeParam) {
+        const [from, to] = routeParam.split(';');
+        if (from && to) {
+            (document.getElementById('from-input') as HTMLInputElement).value = from;
+            (document.getElementById('to-input') as HTMLInputElement).value = to;
+            findOptimalRoute();
             
-            // Send the result back to the model for a natural language response
-            const response2 = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: [
-                    { role: 'user', parts: [{ text: message }] },
-                    { role: 'model', parts: [response.candidates![0].content.parts[0]] },
-                    { role: 'user', parts: [{ functionResponse: { name, response: { result } } }] }
-                ],
-                config: { tools: tools }
-            });
-
-            addMessageToUI(response2.text, 'ai');
-        } else {
-            addMessageToUI(response.text, 'ai');
-        }
-
-    } catch (error) {
-        console.error("AI Error:", error);
-        addMessageToUI("Sorry, I encountered an error.", 'ai');
-    } finally {
-        typingIndicator.classList.add('hidden');
-    }
-}
-
-function addMessageToUI(text: string, sender: 'user' | 'ai', poiSuggestions?: {name: string, id: number}[]) {
-    const messagesContainer = document.getElementById('chat-messages')!;
-    const messageElement = document.createElement('div');
-    messageElement.className = `message ${sender}-message`;
-    
-    const textElement = document.createElement('p');
-    textElement.textContent = text;
-    messageElement.appendChild(textElement);
-
-    if (poiSuggestions && poiSuggestions.length > 0) {
-        const suggestionsContainer = document.createElement('div');
-        suggestionsContainer.className = 'poi-suggestions';
-
-        poiSuggestions.forEach(poi => {
-            const button = document.createElement('button');
-            button.className = 'poi-suggestion-btn';
-            button.textContent = poi.name;
-            button.onclick = () => {
-                findOptimalRoute('My Location', poi.name);
-                // Close the chat modal for better UX
-                const aiChatModal = document.getElementById('ai-chat-modal')!;
-                aiChatModal.classList.add('hidden');
-            };
-            suggestionsContainer.appendChild(button);
-        });
-        messageElement.appendChild(suggestionsContainer);
-    }
-
-    messagesContainer.appendChild(messageElement);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-function findPoiOnMap(poiName: string) {
-    const allPois = [...pois, ...wazeIncidents];
-    const poi = allPois.find(p => p.name.toLowerCase().includes(poiName.toLowerCase()));
-
-    if (poi) {
-        const targetLayer = poi.type === 'bridge' || poi.type === 'poi' ? poiLayer : incidentLayer;
-        const targetIdKey = poi.type === 'bridge' || poi.type === 'poi' ? 'poiId' : 'incidentId';
-        
-        targetLayer.eachLayer((layer: any) => {
-            if (layer[targetIdKey] === poi.id) {
-                map.flyTo(layer.getLatLng(), 16);
-                layer.openPopup();
+            if (incidentsParam || trafficParam) {
+                let details = `Shared route loaded. Traffic is reportedly <strong>${trafficParam || 'unknown'}</strong>.`;
+                if (incidentsParam) {
+                    const incidentIds = incidentsParam.split(',').map(Number);
+                    details += ` Highlighting ${incidentIds.length} shared incident(s).`;
+                     incidentLayer.eachLayer((layer: any) => {
+                        if (incidentIds.includes(layer.incidentId)) {
+                            layer.openPopup();
+                        }
+                    });
+                }
+                 document.getElementById('route-details')!.innerHTML = `<p>${details}</p>`;
             }
-        });
-        return `Found ${poi.name} and centered the map on it.`;
-    } else {
-        return `Sorry, I could not find a location named "${poiName}".`;
-    }
-}
-
-function addIncidentToMap(incidentType: string, locationName?: string) {
-    let incidentLat: number;
-    let incidentLng: number;
-    let finalLocationName: string;
-
-    if (locationName) {
-        const location = pois.find(p => p.name.toLowerCase().includes(locationName.toLowerCase()));
-        if (!location) {
-            return `Sorry, I couldn't find the location "${locationName}" to add the incident.`;
-        }
-        incidentLat = location.lat + 0.001; // Offset slightly to avoid overlap
-        incidentLng = location.lng + 0.001;
-        finalLocationName = `"${locationName}"`;
-    } else {
-        // No location provided, use context
-        if (currentUserPosition) {
-            // Prioritize user's GPS
-            incidentLat = currentUserPosition.lat;
-            incidentLng = currentUserPosition.lng;
-            finalLocationName = "your current location";
-        } else {
-            // Fallback to map center
-            const center = map.getCenter();
-            incidentLat = center.lat;
-            incidentLng = center.lng;
-            finalLocationName = "the center of the map";
         }
     }
-    
-    const newIncident = {
-        id: Math.max(...wazeIncidents.map(i => i.id), ...pois.map(p => p.id)) + 1,
-        name: incidentType.charAt(0).toUpperCase() + incidentType.slice(1),
-        lat: incidentLat,
-        lng: incidentLng,
-        type: incidentType.toLowerCase().includes('closure') ? 'closure' : 'traffic',
-        status: 'Newly Reported'
-    };
-    
-    wazeIncidents.push(newIncident);
-    addIncidentLayer(wazeIncidents);
-    populateDisplayPanel();
-    
-    return `OK, I've added a new "${incidentType}" incident at ${finalLocationName}.`;
 }
 
-// --- Helper Functions ---
-function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371; // Radius of the earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const d = R * c; // Distance in km
-    return d;
-}
-
-function findNearbyPoisOnMap(poiType: string): {name: string, id: number}[] {
-    if (!currentUserPosition) {
-        return [];
-    }
-
-    const searchRadiusKm = 2; // 2km radius
-    const { lat, lng } = currentUserPosition;
-
-    const foundPois = pois.filter(poi => {
-        if (!poi.category) return false;
-        const distance = getDistance(lat, lng, poi.lat, poi.lng);
-        // Simple keyword matching for category
-        return poi.category.toLowerCase().includes(poiType.toLowerCase().replace(/s$/, '')) && distance <= searchRadiusKm;
-    });
-
-    // Sort by distance
-    foundPois.sort((a, b) => {
-        const distA = getDistance(lat, lng, a.lat, a.lng);
-        const distB = getDistance(lat, lng, b.lat, b.lng);
-        return distA - distB;
-    });
-
-    return foundPois.map(p => ({ name: p.name, id: p.id }));
-}
-
-// --- Live Traffic Simulation ---
 function updateAndRefreshTraffic() {
-    // Randomly change traffic conditions for demonstration
+    // Simulate traffic changes
     mockTrafficData.forEach(road => {
         const rand = Math.random();
-        if (rand < 0.33) road.traffic = 'clear';
-        else if (rand < 0.66) road.traffic = 'moderate';
-        else road.traffic = 'heavy';
+        if (rand < 0.1) road.traffic = "heavy";
+        else if (rand < 0.4) road.traffic = "moderate";
+        else road.traffic = "clear";
     });
-    
-    // Refresh the style of the traffic layer
+    // Refresh traffic layer style
     trafficLayer.setStyle(getTrafficStyle);
+}
+
+// --- Helpers ---
+function getDistance(pos1: { lat: number, lng: number }, pos2: { lat: number, lng: number }) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (pos2.lat - pos1.lat) * Math.PI / 180;
+    const dLon = (pos2.lng - pos1.lng) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(pos1.lat * Math.PI / 180) * Math.cos(pos2.lat * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+}
+
+function shareLiveLocation() {
+    if (!currentUserPosition) {
+        alert("Current location not available.");
+        return;
+    }
+    const url = new URL(window.location.href);
+    url.search = ''; // Clear other params
+    url.searchParams.set('lat', String(currentUserPosition.lat));
+    url.searchParams.set('lng', String(currentUserPosition.lng));
+    
+    const shareText = `I'm here! Check out my live location on Sadak Sathi: ${url.toString()}`;
+    
+    if (navigator.share) {
+        navigator.share({
+            title: 'My Live Location',
+            text: shareText,
+            url: url.toString()
+        }).catch(console.error);
+    } else {
+        navigator.clipboard.writeText(url.toString()).then(() => {
+            showToast(translations[currentLang].link_copied);
+        });
+    }
 }
