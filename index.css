@@ -150,6 +150,12 @@ html, body {
     font-weight: 500;
     font-size: 0.9rem;
 }
+#weather-icon.sunny { color: #f1c40f; }
+#weather-icon.cloudy { color: #95a5a6; }
+#weather-icon.stormy { color: #34495e; }
+#weather-icon.cold { color: #3498db; }
+#weather-icon { transition: color 0.3s ease-in-out; }
+
 
 
 /* GPS Status Indicator */
@@ -614,11 +620,11 @@ html, body {
 }
 
 /* Conditional UI visibility based on App Mode */
-#app-container[data-mode="drive"] #dashboard-btn { display: flex; }
-#app-container[data-mode="ride"] #sos-btn { display: flex; }
-#app-container[data-mode="explore"] #sos-btn { display: flex; }
+#app-container[data-mode="driving"] #dashboard-btn { display: flex; }
+#app-container[data-mode="riding"] #sos-btn { display: flex; }
+#app-container[data-mode="exploring"] #sos-btn { display: flex; }
 #app-container[data-mode="connect"] #sos-btn, 
 #app-container[data-mode="connect"] #share-trip-btn { display: flex; }
 
-#app-container:not([data-mode="drive"]) #speed-widget,
-#app-container:not([data-mode="drive"]) #compass-widget { display: none; }
+#app-container:not([data-mode="driving"]) #speed-widget,
+#app-container:not([data-mode="driving"]) #compass-widget { display: none; }

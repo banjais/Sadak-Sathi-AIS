@@ -29,6 +29,7 @@ import { GoogleGenAI, Tool, Type, GenerateContentResponse } from "@google/genai"
 declare namespace L {
     type Map = any;
     type GeoJSON = any;
+
     type FeatureGroup = any;
     type Marker = any;
     type Polyline = any;
@@ -95,7 +96,7 @@ let allPois: any[] = [];
 let allIncidents: any[] = [];
 let isVoiceResponseEnabled = true; // State for AI voice response feature
 let activeChat: any = null; // To hold the AI chat session
-let currentAppMode: 'drive' | 'ride' | 'explore' | 'connect' = 'drive';
+let currentAppMode: 'driving' | 'riding' | 'exploring' | 'connect' = 'driving';
 let isSharingTrip = false;
 
 // =================================================================================
@@ -109,7 +110,7 @@ const translations = {
         find_route_btn: "Find Optimal Route", clear_route_btn: "Clear Route", share_route: "Share Route",
         ai_chat_title: "AI Assistant", ai_chat_placeholder: "Type a message...", menu_settings: "Settings",
         menu_dashboard: "Dashboard", ai_voice_response: "AI Voice Response",
-        select_mode: "Select Mode", mode_drive: "Drive", mode_ride: "Ride", mode_explore: "Explore",
+        select_mode: "Select Mode", mode_driving: "Driving", mode_riding: "Riding", mode_exploring: "Exploring",
         mode_connect: "Connect", emergency_sos: "Emergency SOS", sos_message: "Sending your location to emergency contacts...",
         share_trip: "Share Trip", share_trip_desc: "Share a live link of your journey with friends and family.",
         start_sharing: "Start Sharing", sharing_active: "Live location sharing is active.",
@@ -122,8 +123,8 @@ const translations = {
         display_panel_title: "नजिकैको जानकारी", route_finder: "मार्ग खोजकर्ता", find_route_btn: "उत्तम मार्ग खोज्नुहोस्",
         clear_route_btn: "मार्ग हटाउनुहोस्", share_route: "मार्ग साझा गर्नुहोस्", ai_chat_title: "एआई सहायक",
         ai_chat_placeholder: "सन्देश टाइप गर्नुहोस्...", menu_settings: "सेटिङहरू", menu_dashboard: "ड्यासबोर्ड",
-        ai_voice_response: "एआई आवाज प्रतिक्रिया", select_mode: "मोड चयन गर्नुहोस्", mode_drive: "ड्राइभ",
-        mode_ride: "राइड", mode_explore: "अन्वेषण", mode_connect: "कनेक्ट", emergency_sos: "आपतकालीन एसओएस",
+        ai_voice_response: "एआई आवाज प्रतिक्रिया", select_mode: "मोड चयन गर्नुहोस्", mode_driving: "ड्राइभिङ",
+        mode_riding: "राइडिङ", mode_exploring: "अन्वेषण", mode_connect: "कनेक्ट", emergency_sos: "आपतकालीन एसओएस",
         sos_message: "तपाईंको स्थान आपतकालीन सम्पर्कहरूमा पठाइँदैछ...", share_trip: "यात्रा साझा गर्नुहोस्",
         share_trip_desc: "आफ्नो यात्राको प्रत्यक्ष लिङ्क साथीहरू र परिवारसँग साझा गर्नुहोस्।",
         start_sharing: "साझा गर्न सुरु गर्नुहोस्", sharing_active: "प्रत्यक्ष स्थान साझा सक्रिय छ।",
@@ -136,8 +137,8 @@ const translations = {
         incidents: "घटनाएं", display_panel_title: "आस-पास की जानकारी", route_finder: "मार्ग खोजक", find_route_btn: "इष्टतम मार्ग खोजें",
         clear_route_btn: "मार्ग साफ़ करें", share_route: "मार्ग साझा करें", ai_chat_title: "एआई सहायक",
         ai_chat_placeholder: "एक संदेश टाइप करें...", menu_settings: "सेटिंग्स", menu_dashboard: "डैशबोर्ड",
-        ai_voice_response: "एआई वॉयस रिस्पांस", select_mode: "मोड चुनें", mode_drive: "ड्राइव",
-        mode_ride: "राइड", mode_explore: "अन्वेषण", mode_connect: "कनेक्ट", emergency_sos: "आपातकालीन एसओएस",
+        ai_voice_response: "एआई वॉयस रिस्पांस", select_mode: "मोड चुनें", mode_driving: "ड्राइविंग",
+        mode_riding: "राइडिंग", mode_exploring: "अन्वेषण", mode_connect: "कनेक्ट", emergency_sos: "आपातकालीन एसओएस",
         sos_message: "आपका स्थान आपातकालीन संपर्कों को भेजा जा रहा है...", share_trip: "यात्रा साझा करें",
         share_trip_desc: "अपनी यात्रा का एक लाइव लिंक दोस्तों और परिवार के साथ साझा करें।",
         start_sharing: "साझा करना शुरू करें", sharing_active: "लाइव लोकेशन शेयरिंग सक्रिय है।",
@@ -337,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isVoiceResponseEnabled = savedVoicePref !== null ? savedVoicePref === 'true' : true;
         (document.getElementById('toggle-voice-response') as HTMLInputElement).checked = isVoiceResponseEnabled;
 
-        const savedMode = localStorage.getItem('appMode') as typeof currentAppMode || 'drive';
+        const savedMode = localStorage.getItem('appMode') as typeof currentAppMode || 'driving';
         updateAppMode(savedMode);
     };
 
@@ -566,9 +567,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const labelEl = modeBtn.querySelector('.label')!;
         
         const modeConfig = {
-            drive: { icon: 'directions_car', labelKey: 'mode_drive' },
-            ride: { icon: 'person', labelKey: 'mode_ride' },
-            explore: { icon: 'explore', labelKey: 'mode_explore' },
+            driving: { icon: 'directions_car', labelKey: 'mode_driving' },
+            riding: { icon: 'person', labelKey: 'mode_riding' },
+            exploring: { icon: 'explore', labelKey: 'mode_exploring' },
             connect: { icon: 'group', labelKey: 'mode_connect' }
         };
 
@@ -577,8 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
         labelEl.textContent = t(modeConfig[mode].labelKey);
         
         // Toggle contextual buttons
-        document.getElementById('dashboard-btn')!.classList.toggle('hidden', mode !== 'drive');
-        const isSosVisible = mode === 'ride' || mode === 'explore' || mode === 'connect';
+        document.getElementById('dashboard-btn')!.classList.toggle('hidden', mode !== 'driving');
+        const isSosVisible = mode === 'riding' || mode === 'exploring' || mode === 'connect';
         document.getElementById('sos-btn')!.classList.toggle('hidden', !isSosVisible);
         document.getElementById('share-trip-btn')!.classList.toggle('hidden', mode !== 'connect');
     };
