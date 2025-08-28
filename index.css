@@ -257,6 +257,32 @@ html, body {
     background-color: rgba(128, 128, 128, 0.1);
 }
 
+#settings-panel hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 10px 0;
+}
+
+#settings-panel .settings-section h3 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+    padding: 0 8px;
+    opacity: 0.8;
+}
+
+#settings-panel .setting-item {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+}
+
+#settings-panel .setting-item label {
+    margin-left: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
 /* Layers Panel */
 #layers-panel {
     position: fixed;

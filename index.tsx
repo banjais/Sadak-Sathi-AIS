@@ -123,6 +123,10 @@ const translations: { [key: string]: any } = {
         nearby_pois: 'Nearby POIs',
         voice_error_no_speech: "I didn't catch that. Please try tapping the mic again.",
         voice_error_mic_problem: "There seems to be an issue with your microphone.",
+        route_preferences: 'Route Preferences',
+        prefer_highways: 'Prefer Highways',
+        avoid_tolls: 'Avoid Tolls',
+        prefer_scenic_route: 'Prefer Scenic Route',
     },
     np: {
         layers: 'तहहरू',
@@ -152,6 +156,10 @@ const translations: { [key: string]: any } = {
         nearby_pois: 'नजिकैको POIs',
         voice_error_no_speech: 'मैले बुझिनँ। कृपया माइक फेरि ट्याप गर्नुहोस्।',
         voice_error_mic_problem: 'तपाईंको माइक्रोफोनमा समस्या देखिन्छ।',
+        route_preferences: 'मार्ग प्राथमिकताहरू',
+        prefer_highways: 'राजमार्गहरू प्राथमिकता दिनुहोस्',
+        avoid_tolls: 'टोलबाट बच्नुहोस्',
+        prefer_scenic_route: 'रमणीय मार्ग प्राथमिकता दिनुहोस्',
     },
     hi: {
         layers: 'परतें',
@@ -181,6 +189,10 @@ const translations: { [key: string]: any } = {
         nearby_pois: 'आस-पास के POI',
         voice_error_no_speech: 'मैंने सुना नहीं। कृपया माइक को फिर से टैप करें।',
         voice_error_mic_problem: 'आपके माइक्रोफ़ोन में कोई समस्या है।',
+        route_preferences: 'मार्ग प्राथमिकताएं',
+        prefer_highways: 'राजमार्गों को प्राथमिकता दें',
+        avoid_tolls: 'टोल से बचें',
+        prefer_scenic_route: 'दर्शनीय मार्ग को प्राथमिकता दें',
     }
 };
 
@@ -199,6 +211,11 @@ let chatHistory: any[] = []; // Store chat history for context
 let highAccuracyWatchId: number | null = null;
 let lowAccuracyWatchId: number | null = null;
 let recognition: any | null = null;
+let routePreferences = {
+    preferHighways: false,
+    avoidTolls: false,
+    preferScenic: false,
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
@@ -272,6 +289,10 @@ function initUI() {
     const passengerModeBtn = document.getElementById('passenger-mode-btn')!;
     const shareLocationBtn = document.getElementById('share-location-btn')!;
     const nearbyPoisBtn = document.getElementById('nearby-pois-btn')!;
+    const prefHighways = document.getElementById('pref-highways') as HTMLInputElement;
+    const prefNoTolls = document.getElementById('pref-no-tolls') as HTMLInputElement;
+    const prefScenic = document.getElementById('pref-scenic') as HTMLInputElement;
+
 
     // Theme switcher
     themeToggle.addEventListener('click', () => {
@@ -400,6 +421,27 @@ function initUI() {
     nearbyPoisBtn.addEventListener('click', () => {
         displayPanel.classList.remove('collapsed');
         setTimeout(() => map.invalidateSize(), 400);
+    });
+
+    // Route Preferences
+    prefHighways.addEventListener('change', (e) => {
+        routePreferences.preferHighways = (e.target as HTMLInputElement).checked;
+        if (routePreferences.preferHighways) {
+            // Uncheck scenic if highways is checked
+            routePreferences.preferScenic = false;
+            prefScenic.checked = false;
+        }
+    });
+    prefNoTolls.addEventListener('change', (e) => {
+        routePreferences.avoidTolls = (e.target as HTMLInputElement).checked;
+    });
+    prefScenic.addEventListener('change', (e) => {
+        routePreferences.preferScenic = (e.target as HTMLInputElement).checked;
+        if (routePreferences.preferScenic) {
+            // Uncheck highways if scenic is checked
+            routePreferences.preferHighways = false;
+            prefHighways.checked = false;
+        }
     });
 }
 
@@ -719,16 +761,49 @@ function findOptimalRoute() {
     }
 
     // --- Mock route finding logic ---
-    // In a real app, this would call a routing engine API (e.g., OSRM, GraphHopper, Google Maps)
     const startPoint = L.latLng(fromLocation.lat, fromLocation.lng);
     const endPoint = L.latLng(toLocation.lat, toLocation.lng);
 
-    // Create a simple straight line or a slightly curved path for demo
-    const latlngs = [
-        startPoint,
-        L.latLng((startPoint.lat + endPoint.lat) / 2 + 0.01, (startPoint.lng + endPoint.lng) / 2 + 0.01), // A middle point to make it not straight
-        endPoint
-    ];
+    let latlngs: L.LatLng[];
+    let preferenceMessage = '';
+
+    if (routePreferences.preferScenic) {
+        // Create a more winding path for a scenic route
+        latlngs = [
+            startPoint,
+            L.latLng((startPoint.lat + endPoint.lat) / 2 + 0.015, (startPoint.lng + endPoint.lng) / 2 - 0.01),
+            L.latLng((startPoint.lat + endPoint.lat) / 2 - 0.005, (startPoint.lng + endPoint.lng) / 2 + 0.015),
+            endPoint
+        ];
+        preferenceMessage = 'Found a scenic route.';
+    } else if (routePreferences.preferHighways) {
+        // Try to snap to the highway
+        const highway = dorGeoJson.features.find(f => f.properties.name === "Prithvi Highway");
+        if (highway) {
+             const highwayMidpoint = highway.geometry.coordinates[1];
+             latlngs = [
+                startPoint,
+                L.latLng(highwayMidpoint[1], highwayMidpoint[0]), // Note: GeoJSON is [lng, lat]
+                endPoint
+            ];
+        } else {
+            // Fallback if highway not found
+             latlngs = [startPoint, endPoint];
+        }
+        preferenceMessage = 'Found a route preferring highways.';
+    } else {
+        // Default simple route
+        latlngs = [
+            startPoint,
+            L.latLng((startPoint.lat + endPoint.lat) / 2 + 0.01, (startPoint.lng + endPoint.lng) / 2 + 0.01),
+            endPoint
+        ];
+        preferenceMessage = 'Fastest route found.';
+    }
+    
+    if (routePreferences.avoidTolls) {
+        preferenceMessage += ' Avoiding tolls.';
+    }
     // --- End Mock Logic ---
 
     clearRoute(); // Clear previous route
@@ -743,7 +818,7 @@ function findOptimalRoute() {
     currentRouteInfo = { from: fromLocationName, to: toLocationName };
 
     const { summaryMessage, incidentsOnRoute } = getRouteSummary(polyline);
-    routeDetailsPanel.innerHTML = summaryMessage;
+    routeDetailsPanel.innerHTML = `<p><em>${preferenceMessage}</em></p>` + summaryMessage;
 
     // Highlight incidents on the route
     if (incidentsOnRoute.length > 0) {
@@ -916,6 +991,7 @@ async function handleChatMessage(userMessageOverride?: string) {
     const context = `
         The user is currently in "${currentMode}" mode.
         ${activeRoute}
+        User's routing preferences: ${JSON.stringify(routePreferences)}.
         Current traffic on major roads: ${JSON.stringify(mockTrafficData)}.
         Visible points of interest on the map: ${JSON.stringify(visiblePois.map(p => ({ name: p.name, category: p.category, status: p.status })))}.
         Visible incidents on the map: ${JSON.stringify(visibleIncidents.map(i => ({ name: i.name, type: i.type, status: i.status })))}.
