@@ -457,16 +457,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const states: ('searching' | 'connected' | 'lost')[] = ['searching', 'connected', 'lost'];
         let currentStateIndex = 0;
 
-        // Initial state
-        updateGpsStatus(states[currentStateIndex]);
+        const cycleStatus = () => {
+            const currentStatus = states[currentStateIndex];
+            updateGpsStatus(currentStatus);
 
-        setInterval(() => {
+            // Set the duration for the current state before scheduling the next one.
+            let duration;
+            switch (currentStatus) {
+                case 'searching':
+                    duration = 4000; // 4 seconds
+                    break;
+                case 'connected':
+                    duration = 10000; // 10 seconds
+                    break;
+                case 'lost':
+                    duration = 4000; // 4 seconds
+                    break;
+                default:
+                    duration = 5000; // Fallback
+            }
+
+            // Move to the next state for the next cycle.
             currentStateIndex = (currentStateIndex + 1) % states.length;
-            // Make 'connected' state last longer
-            const nextState = states[currentStateIndex];
-            updateGpsStatus(nextState);
-        }, (currentStateIndex === 1 ? 10000 : 4000)); // 10s for connected, 4s for others
+
+            // Schedule the next update.
+            setTimeout(cycleStatus, duration);
+        };
+
+        // Start the simulation cycle.
+        cycleStatus();
     };
+
 
     const setupCockpitWidgets = () => {
         let currentSpeed = 0;

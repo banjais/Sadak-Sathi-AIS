@@ -15,9 +15,9 @@
     --text-color-light: #ffffff;
     --bg-color: #ecf0f1;
     --panel-bg-color: #ffffff;
-    --header-bg-color: rgba(255, 255, 255, 0.85);
+    --header-bg-color: rgba(255, 255, 255, 0.7);
     --border-color: #bdc3c7;
-    --shadow-color: rgba(0, 0, 0, 0.1);
+    --shadow-color: rgba(0, 0, 0, 0.08);
     --success-color: #2ecc71;
     --warning-color: #f39c12;
     --danger-color: #e74c3c;
@@ -31,9 +31,9 @@
     --text-color-light: #2c3e50;
     --bg-color: #2c3e50;
     --panel-bg-color: #34495e;
-    --header-bg-color: rgba(44, 62, 80, 0.85);
+    --header-bg-color: rgba(44, 62, 80, 0.7);
     --border-color: #7f8c8d;
-    --shadow-color: rgba(0, 0, 0, 0.4);
+    --shadow-color: rgba(0, 0, 0, 0.3);
 }
 
 /* Base styles */
