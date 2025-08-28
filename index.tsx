@@ -127,6 +127,10 @@ const translations: { [key: string]: any } = {
         prefer_highways: 'Prefer Highways',
         avoid_tolls: 'Avoid Tolls',
         prefer_scenic_route: 'Prefer Scenic Route',
+        route_pref_scenic: 'Found a scenic route.',
+        route_pref_highways: 'Found a route preferring highways.',
+        route_pref_fastest: 'Fastest route found.',
+        route_pref_avoid_tolls: 'Avoiding tolls.',
     },
     np: {
         layers: 'तहहरू',
@@ -160,6 +164,10 @@ const translations: { [key: string]: any } = {
         prefer_highways: 'राजमार्गहरू प्राथमिकता दिनुहोस्',
         avoid_tolls: 'टोलबाट बच्नुहोस्',
         prefer_scenic_route: 'रमणीय मार्ग प्राथमिकता दिनुहोस्',
+        route_pref_scenic: 'एक रमणीय मार्ग फेला पर्यो।',
+        route_pref_highways: 'राजमार्गहरूलाई प्राथमिकता दिने मार्ग फेला पर्यो।',
+        route_pref_fastest: 'सबैभन्दा छिटो मार्ग फेला पर्यो।',
+        route_pref_avoid_tolls: 'टोलबाट बच्दै।',
     },
     hi: {
         layers: 'परतें',
@@ -193,6 +201,10 @@ const translations: { [key: string]: any } = {
         prefer_highways: 'राजमार्गों को प्राथमिकता दें',
         avoid_tolls: 'टोल से बचें',
         prefer_scenic_route: 'दर्शनीय मार्ग को प्राथमिकता दें',
+        route_pref_scenic: 'एक सुंदर मार्ग मिला।',
+        route_pref_highways: 'राजमार्गों को प्राथमिकता देने वाला मार्ग मिला।',
+        route_pref_fastest: 'सबसे तेज़ मार्ग मिला।',
+        route_pref_avoid_tolls: 'टोल से बचते हुए।',
     }
 };
 
@@ -768,41 +780,39 @@ function findOptimalRoute() {
     let preferenceMessage = '';
 
     if (routePreferences.preferScenic) {
-        // Create a more winding path for a scenic route
-        latlngs = [
-            startPoint,
-            L.latLng((startPoint.lat + endPoint.lat) / 2 + 0.015, (startPoint.lng + endPoint.lng) / 2 - 0.01),
-            L.latLng((startPoint.lat + endPoint.lat) / 2 - 0.005, (startPoint.lng + endPoint.lng) / 2 + 0.015),
-            endPoint
-        ];
-        preferenceMessage = 'Found a scenic route.';
+        // Create a winding path for a scenic route, using a "Local Road" as a waypoint.
+        const scenicRoad = dorGeoJson.features.find(f => f.properties.name === "Local Road");
+        const scenicMidpoint = scenicRoad 
+            ? L.latLng(scenicRoad.geometry.coordinates[1][1], scenicRoad.geometry.coordinates[1][0])
+            : L.latLng((startPoint.lat + endPoint.lat) / 2 + 0.015, (startPoint.lng + endPoint.lng) / 2 - 0.01); // fallback
+        latlngs = [ startPoint, scenicMidpoint, endPoint ];
+        preferenceMessage = translations[currentLang].route_pref_scenic;
+
     } else if (routePreferences.preferHighways) {
-        // Try to snap to the highway
+        // Try to snap to the "Prithvi Highway"
         const highway = dorGeoJson.features.find(f => f.properties.name === "Prithvi Highway");
-        if (highway) {
-             const highwayMidpoint = highway.geometry.coordinates[1];
-             latlngs = [
-                startPoint,
-                L.latLng(highwayMidpoint[1], highwayMidpoint[0]), // Note: GeoJSON is [lng, lat]
-                endPoint
-            ];
-        } else {
-            // Fallback if highway not found
-             latlngs = [startPoint, endPoint];
-        }
-        preferenceMessage = 'Found a route preferring highways.';
+        const highwayMidpoint = highway 
+            ? L.latLng(highway.geometry.coordinates[1][1], highway.geometry.coordinates[1][0]) // Note: GeoJSON is [lng, lat]
+            : endPoint; // fallback
+        latlngs = [ startPoint, highwayMidpoint, endPoint ];
+        preferenceMessage = translations[currentLang].route_pref_highways;
+
     } else {
-        // Default simple route
-        latlngs = [
-            startPoint,
-            L.latLng((startPoint.lat + endPoint.lat) / 2 + 0.01, (startPoint.lng + endPoint.lng) / 2 + 0.01),
-            endPoint
-        ];
-        preferenceMessage = 'Fastest route found.';
+        // Default "fastest" route is a more direct path (mocked as a straight line)
+        latlngs = [ startPoint, endPoint ];
+        preferenceMessage = translations[currentLang].route_pref_fastest;
     }
     
     if (routePreferences.avoidTolls) {
-        preferenceMessage += ' Avoiding tolls.';
+        // In a real app, this would influence the pathfinding algorithm.
+        // Here, we just add a message and slightly alter the path for visual feedback.
+        preferenceMessage += ` ${translations[currentLang].route_pref_avoid_tolls}`;
+        if(latlngs.length <= 2) { // If it's a direct route
+            // Add a slight deviation to simulate avoiding a toll booth
+            const midLat = (startPoint.lat + endPoint.lat) / 2 + 0.005;
+            const midLng = (startPoint.lng + endPoint.lng) / 2 + 0.005;
+            latlngs.splice(1, 0, L.latLng(midLat, midLng));
+        }
     }
     // --- End Mock Logic ---
 
