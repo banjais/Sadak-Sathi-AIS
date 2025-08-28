@@ -260,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setupEventListeners();
         setupAIChat();
         simulateGpsStatus();
+        setupCockpitWidgets();
 
         // Restore saved language or default to 'en'
         const savedLang = localStorage.getItem('appLanguage') || 'en';
@@ -465,6 +466,40 @@ document.addEventListener('DOMContentLoaded', () => {
             const nextState = states[currentStateIndex];
             updateGpsStatus(nextState);
         }, (currentStateIndex === 1 ? 10000 : 4000)); // 10s for connected, 4s for others
+    };
+
+    const setupCockpitWidgets = () => {
+        let currentSpeed = 0;
+        let currentHeading = 0;
+
+        const speedValueEl = document.querySelector('#speed-widget .value') as HTMLElement;
+        const compassRoseEl = document.querySelector('#compass-widget .compass-rose') as HTMLElement;
+
+        if (!speedValueEl || !compassRoseEl) {
+            console.error("Cockpit widgets not found in the DOM.");
+            return;
+        }
+
+        const degreesToCardinal = (deg: number): string => {
+            const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'];
+            return cardinals[Math.round(deg / 45)];
+        };
+
+        setInterval(() => {
+            // Simulate speed change
+            const speedChange = (Math.random() - 0.45) * 10; // Bias towards acceleration
+            currentSpeed += speedChange;
+            currentSpeed = Math.max(0, Math.min(85, currentSpeed)); // Clamp between 0 and 85
+
+            // Simulate heading change
+            const headingChange = (Math.random() - 0.5) * 20;
+            currentHeading = (currentHeading + headingChange + 360) % 360;
+
+            // Update DOM
+            speedValueEl.textContent = Math.round(currentSpeed).toString();
+            compassRoseEl.textContent = degreesToCardinal(currentHeading);
+
+        }, 2500); // Update every 2.5 seconds
     };
 
     const setupEventListeners = () => {
