@@ -282,7 +282,16 @@ document.addEventListener('DOMContentLoaded', () => {
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // Create zoom control and move it to our custom container
+        const zoomControl = L.control.zoom({ position: 'bottomright' }).addTo(map);
+        const zoomControlElement = zoomControl.getContainer();
+        const overlayContainer = document.getElementById('map-overlays-bottom-right');
+
+        if (zoomControlElement && overlayContainer) {
+            // Append the zoom control to our custom container. It will now be part of the flex layout.
+            overlayContainer.appendChild(zoomControlElement);
+        }
 
         poisLayer = L.featureGroup().addTo(map);
         incidentsLayer = L.featureGroup().addTo(map);

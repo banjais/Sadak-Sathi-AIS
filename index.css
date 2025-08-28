@@ -369,13 +369,8 @@ html, body {
 .layer-toggle:last-child { margin-bottom: 0; }
 
 /* Leaflet control repositioning */
-.leaflet-control-container .leaflet-bottom.leaflet-right {
-    bottom: 90px;
-    display: flex;
-    flex-direction: column-reverse;
-    align-items: flex-end;
-    gap: 10px;
-}
+/* The leaflet-control-zoom element is now inside #map-overlays-bottom-right,
+   so we no longer need to position its original container. */
 .leaflet-control-zoom {
     border: none !important;
     box-shadow: 0 2px 5px var(--shadow-color) !important;
