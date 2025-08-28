@@ -3,7 +3,6 @@
   "description": "Your Road Companion",
   "requestFramePermissions": [
     "geolocation",
-    "microphone",
     "camera"
   ]
 }

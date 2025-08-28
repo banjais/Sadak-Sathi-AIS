@@ -146,11 +146,12 @@ const translations = {
 };
 
 // =================================================================================
-// Speech Synthesis (Text-to-Speech) - Robust Queuing System
+// Speech Synthesis (Text-to-Speech) - Self-Healing Queuing System
 // =================================================================================
 let availableVoices: SpeechSynthesisVoice[] = [];
 let speechQueue: string[] = [];
 let isSpeechEngineBusy = false;
+let speechWatchdog: number | null = null; // Self-healing timer
 
 const voicesReadyPromise = new Promise<void>(resolve => {
     const checkVoices = () => {
@@ -177,36 +178,149 @@ const voicesReadyPromise = new Promise<void>(resolve => {
 
 const processSpeechQueue = async () => {
     if (isSpeechEngineBusy || speechQueue.length === 0) return;
+
     isSpeechEngineBusy = true;
     const text = speechQueue.shift();
-    if (!text) { isSpeechEngineBusy = false; return; }
-    await voicesReadyPromise;
-    const utterance = new SpeechSynthesisUtterance(text);
-    const langMap: { [key: string]: string } = { en: 'en-US', np: 'ne-NP', hi: 'hi-IN' };
-    const targetLang = langMap[currentLang] || 'en-US';
-    let voice = availableVoices.find(v => v.lang === targetLang) || availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
-    if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
-    utterance.rate = 1.0;
-    utterance.pitch = 1;
-    utterance.onend = () => { isSpeechEngineBusy = false; processSpeechQueue(); };
-    utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror:', { error: (event as any).error, text: utterance.text.substring(0, 100) + '...' });
+
+    if (!text) {
         isSpeechEngineBusy = false;
-        processSpeechQueue();
-    };
-    window.speechSynthesis.speak(utterance);
+        return;
+    }
+
+    try {
+        await voicesReadyPromise;
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        const langMap: { [key: string]: string } = {
+            en: 'en-US', np: 'ne-NP', hi: 'hi-IN', es: 'es-ES', fr: 'fr-FR',
+            de: 'de-DE', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR',
+            new: 'ne-NP', // Fallback for Newari
+            mai: 'hi-IN'  // Fallback for Maithili
+        };
+        const targetLang = langMap[currentLang] || 'en-US';
+        
+        availableVoices = window.speechSynthesis.getVoices();
+        let voice = availableVoices.find(v => v.lang === targetLang) || availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+        
+        if (voice) {
+            utterance.voice = voice;
+            utterance.lang = voice.lang;
+        }
+
+        utterance.rate = 1.0;
+        utterance.pitch = 1;
+
+        const cleanupAndProceed = () => {
+            if (speechWatchdog) {
+                clearTimeout(speechWatchdog);
+                speechWatchdog = null;
+            }
+            isSpeechEngineBusy = false;
+            setTimeout(processSpeechQueue, 500); // Increased delay for stability after error
+        };
+
+        utterance.onend = () => {
+             if (speechWatchdog) clearTimeout(speechWatchdog);
+             speechWatchdog = null;
+             isSpeechEngineBusy = false;
+             setTimeout(processSpeechQueue, 100);
+        };
+
+        utterance.onerror = (event) => {
+            console.error('SpeechSynthesisUtterance.onerror:', {
+                error: (event as any).error,
+                text: utterance.text.substring(0, 100) + '...',
+                langRequested: targetLang,
+                voiceFound: voice ? `${voice.name} (${voice.lang})` : 'none',
+            });
+            cleanupAndProceed();
+        };
+        
+        speechWatchdog = window.setTimeout(() => {
+            console.warn("Speech synthesis watchdog triggered. Engine may have hung. Forcing reset.");
+            window.speechSynthesis.cancel();
+            cleanupAndProceed();
+        }, 15000);
+
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        
+        setTimeout(() => window.speechSynthesis.speak(utterance), 100);
+
+    } catch (e) {
+        console.error("Error in speech processing pipeline:", e);
+        if (speechWatchdog) clearTimeout(speechWatchdog);
+        isSpeechEngineBusy = false;
+        setTimeout(processSpeechQueue, 100);
+    }
 };
+
+/**
+ * Splits text into smaller chunks for the speech synthesis engine,
+ * which can be unstable with long strings. Tries to split at sentence
+ * endings or spaces to sound more natural.
+ */
+const splitTextIntoChunks = (text: string, chunkSize = 150): string[] => {
+    if (text.length <= chunkSize) {
+        return [text];
+    }
+    const chunks: string[] = [];
+    let remainingText = text;
+
+    while (remainingText.length > 0) {
+        if (remainingText.length <= chunkSize) {
+            chunks.push(remainingText);
+            break;
+        }
+        // Find the last sentence-ending punctuation or space within the chunk size
+        let splitPos = -1;
+        const punctuation = ['.', '?', '!', ';'];
+        for (const p of punctuation) {
+            const pos = remainingText.lastIndexOf(p, chunkSize);
+            if (pos > splitPos) {
+                splitPos = pos;
+            }
+        }
+        // If no punctuation, find the last space
+        if (splitPos === -1) {
+            splitPos = remainingText.lastIndexOf(' ', chunkSize);
+        }
+        // If no space is found, split at the chunk size (hard break)
+        if (splitPos === -1) {
+            splitPos = chunkSize -1;
+        }
+        
+        chunks.push(remainingText.substring(0, splitPos + 1));
+        remainingText = remainingText.substring(splitPos + 1).trim();
+    }
+    return chunks;
+};
+
 
 const speakText = (text: string) => {
     if (!isVoiceResponseEnabled || !('speechSynthesis' in window) || !text) return;
-    speechQueue.push(text);
+    
+    // Sanitize and chunk the text to prevent engine errors
+    const sanitizedText = text.replace(/[*_`]/g, ''); // Remove some markdown
+    const chunks = splitTextIntoChunks(sanitizedText);
+    
+    chunks.forEach(chunk => speechQueue.push(chunk));
+    
     processSpeechQueue();
 };
 
+
 const cancelSpeech = () => {
+    if (speechWatchdog) {
+        clearTimeout(speechWatchdog);
+        speechWatchdog = null;
+    }
     speechQueue.length = 0;
     isSpeechEngineBusy = false;
-    if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+    if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+    }
 };
 
 const t = (key: string): string => {
