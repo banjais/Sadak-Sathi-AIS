@@ -287,6 +287,15 @@ function initUI() {
     languageSelect.addEventListener('change', (e) => {
         currentLang = (e.target as HTMLSelectElement).value;
         updateLanguage();
+        // Update speech recognition language
+        if (recognition) {
+            const langMap: { [key: string]: string } = {
+                en: 'en-US',
+                np: 'ne-NP',
+                hi: 'hi-IN'
+            };
+            recognition.lang = langMap[currentLang] || 'en-US';
+        }
     });
 
     // Display panel toggle
@@ -338,7 +347,12 @@ function initUI() {
         if (aiAssistantBtn.dataset.dragged !== 'true') {
             const currentMode = document.getElementById('app-container')!.dataset.mode;
             if (currentMode === 'driver' && recognition) {
-                recognition.start();
+                try {
+                    recognition.start();
+                } catch (err) {
+                    console.error("Speech recognition start error:", err);
+                    // Handle cases where recognition is already running
+                }
             } else {
                 aiChatModal.classList.remove('hidden');
             }
@@ -822,7 +836,7 @@ function initGeolocation() {
         if (lowAccuracyWatchId === null) {
              lowAccuracyWatchId = navigator.geolocation.watchPosition(onLocationFound, onLocationError, {
                 enableHighAccuracy: false,
-                timeout: 10000,
+                timeout: 20000,
                 maximumAge: 0
             });
         }
@@ -831,7 +845,7 @@ function initGeolocation() {
     // First, try for high accuracy
     highAccuracyWatchId = navigator.geolocation.watchPosition(onLocationFound, onHighAccuracyError, {
         enableHighAccuracy: true,
-        timeout: 15000,
+        timeout: 30000,
         maximumAge: 0
     });
 }
@@ -887,7 +901,12 @@ function initSpeechRecognition() {
     }
     recognition = new SpeechRecognition();
     recognition.continuous = false;
-    recognition.lang = 'en-US'; // Can be changed dynamically with language
+    const langMap: { [key: string]: string } = {
+        en: 'en-US',
+        np: 'ne-NP',
+        hi: 'hi-IN'
+    };
+    recognition.lang = langMap[currentLang] || 'en-US';
     recognition.interimResults = false;
 
     const aiAssistantBtn = document.getElementById('ai-assistant')!;
@@ -944,8 +963,12 @@ async function handleChatMessage() {
 
         const visiblePois = pois.filter(poi => bounds.contains(L.latLng(poi.lat, poi.lng)));
         const visibleIncidents = wazeIncidents.filter(incident => bounds.contains(L.latLng(incident.lat, incident.lng)));
+        
+        const personaInstruction = currentMode === 'driver'
+            ? "You are a helpful, voice-activated driving assistant named Sadak Sathi. Your primary role is to assist the user with hands-free navigation, finding places, and reporting traffic incidents. Keep your responses concise, clear, and action-oriented."
+            : "You are a helpful AI assistant for a passenger. Your role is to provide information about nearby points of interest, help plan trips, and answer questions about the route and surroundings.";
 
-        let contextString = `Current app state and map context:\n- User Mode: ${currentMode}\n- Map Center: ${mapCenter.lat.toFixed(4)}, ${mapCenter.lng.toFixed(4)}\n- Zoom Level: ${mapZoom}\n`;
+        let contextString = `${personaInstruction}\n\nCurrent app state and map context:\n- User Mode: ${currentMode}\n- Map Center: ${mapCenter.lat.toFixed(4)}, ${mapCenter.lng.toFixed(4)}\n- Zoom Level: ${mapZoom}\n`;
         
         if (currentUserPosition) {
             contextString += `- User's current location: ${currentUserPosition.lat.toFixed(4)}, ${currentUserPosition.lng.toFixed(4)}\n`;
