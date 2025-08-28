@@ -590,6 +590,7 @@ html, body {
 }
 
 .chat-panel {
+    position: relative;
     width: 90%;
     max-width: 450px;
     height: 70vh;
