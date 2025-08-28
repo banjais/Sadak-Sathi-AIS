@@ -95,6 +95,8 @@ let allPois: any[] = [];
 let allIncidents: any[] = [];
 let isVoiceResponseEnabled = true; // State for AI voice response feature
 let activeChat: any = null; // To hold the AI chat session
+let currentAppMode: 'drive' | 'ride' | 'explore' | 'connect' = 'drive';
+let isSharingTrip = false;
 
 // =================================================================================
 // Internationalization (i18n)
@@ -106,7 +108,12 @@ const translations = {
         incidents: "Incidents", display_panel_title: "Nearby Information", route_finder: "Route Finder",
         find_route_btn: "Find Optimal Route", clear_route_btn: "Clear Route", share_route: "Share Route",
         ai_chat_title: "AI Assistant", ai_chat_placeholder: "Type a message...", menu_settings: "Settings",
-        menu_dashboard: "Dashboard", menu_driver: "Driver", ai_voice_response: "AI Voice Response"
+        menu_dashboard: "Dashboard", ai_voice_response: "AI Voice Response",
+        select_mode: "Select Mode", mode_drive: "Drive", mode_ride: "Ride", mode_explore: "Explore",
+        mode_connect: "Connect", emergency_sos: "Emergency SOS", sos_message: "Sending your location to emergency contacts...",
+        share_trip: "Share Trip", share_trip_desc: "Share a live link of your journey with friends and family.",
+        start_sharing: "Start Sharing", sharing_active: "Live location sharing is active.",
+        stop_sharing: "Stop Sharing", menu_sos: "SOS", menu_share_trip: "Share Trip"
     },
     np: {
         route_preferences: "मार्ग प्राथमिकताहरू", prefer_highways: "राजमार्गहरू प्राथमिकता दिनुहोस्",
@@ -115,83 +122,36 @@ const translations = {
         display_panel_title: "नजिकैको जानकारी", route_finder: "मार्ग खोजकर्ता", find_route_btn: "उत्तम मार्ग खोज्नुहोस्",
         clear_route_btn: "मार्ग हटाउनुहोस्", share_route: "मार्ग साझा गर्नुहोस्", ai_chat_title: "एआई सहायक",
         ai_chat_placeholder: "सन्देश टाइप गर्नुहोस्...", menu_settings: "सेटिङहरू", menu_dashboard: "ड्यासबोर्ड",
-        menu_driver: "चालक", ai_voice_response: "एआई आवाज प्रतिक्रिया"
+        ai_voice_response: "एआई आवाज प्रतिक्रिया", select_mode: "मोड चयन गर्नुहोस्", mode_drive: "ड्राइभ",
+        mode_ride: "राइड", mode_explore: "अन्वेषण", mode_connect: "कनेक्ट", emergency_sos: "आपतकालीन एसओएस",
+        sos_message: "तपाईंको स्थान आपतकालीन सम्पर्कहरूमा पठाइँदैछ...", share_trip: "यात्रा साझा गर्नुहोस्",
+        share_trip_desc: "आफ्नो यात्राको प्रत्यक्ष लिङ्क साथीहरू र परिवारसँग साझा गर्नुहोस्।",
+        start_sharing: "साझा गर्न सुरु गर्नुहोस्", sharing_active: "प्रत्यक्ष स्थान साझा सक्रिय छ।",
+        stop_sharing: "साझा गर्न रोक्नुहोस्", menu_sos: "एसओएस", menu_share_trip: "यात्रा साझा"
     },
+    // Add other languages similarly...
     hi: {
         route_preferences: "मार्ग प्राथमिकताएं", prefer_highways: "राजमार्गों को प्राथमिकता दें", avoid_tolls: "टोल से बचें",
         prefer_scenic_route: "दर्शनीय मार्ग को प्राथमिकता दें", layers: "परतें", roads: "सड़कें", pois: "रुचि के बिंदु",
         incidents: "घटनाएं", display_panel_title: "आस-पास की जानकारी", route_finder: "मार्ग खोजक", find_route_btn: "इष्टतम मार्ग खोजें",
         clear_route_btn: "मार्ग साफ़ करें", share_route: "मार्ग साझा करें", ai_chat_title: "एआई सहायक",
         ai_chat_placeholder: "एक संदेश टाइप करें...", menu_settings: "सेटिंग्स", menu_dashboard: "डैशबोर्ड",
-        menu_driver: "चालक", ai_voice_response: "एआई वॉयस रिस्पांस"
+        ai_voice_response: "एआई वॉयस रिस्पांस", select_mode: "मोड चुनें", mode_drive: "ड्राइव",
+        mode_ride: "राइड", mode_explore: "अन्वेषण", mode_connect: "कनेक्ट", emergency_sos: "आपातकालीन एसओएस",
+        sos_message: "आपका स्थान आपातकालीन संपर्कों को भेजा जा रहा है...", share_trip: "यात्रा साझा करें",
+        share_trip_desc: "अपनी यात्रा का एक लाइव लिंक दोस्तों और परिवार के साथ साझा करें।",
+        start_sharing: "साझा करना शुरू करें", sharing_active: "लाइव लोकेशन शेयरिंग सक्रिय है।",
+        stop_sharing: "साझा करना बंद करें", menu_sos: "एसओएस", menu_share_trip: "यात्रा साझा करें"
     },
-    es: {
-        route_preferences: "Preferencias de ruta", prefer_highways: "Preferir autopistas", avoid_tolls: "Evitar peajes",
-        prefer_scenic_route: "Preferir ruta escénica", layers: "Capas", roads: "Carreteras", pois: "Puntos de interés",
-        incidents: "Incidentes", display_panel_title: "Información cercana", route_finder: "Buscador de rutas",
-        find_route_btn: "Encontrar ruta óptima", clear_route_btn: "Borrar ruta", share_route: "Compartir ruta",
-        ai_chat_title: "Asistente de IA", ai_chat_placeholder: "Escribe un mensaje...", menu_settings: "Ajustes",
-        menu_dashboard: "Tablero", menu_driver: "Conductor", ai_voice_response: "Respuesta de voz de IA"
-    },
-    fr: {
-        route_preferences: "Préférences d'itinéraire", prefer_highways: "Préférer les autoroutes", avoid_tolls: "Éviter les péages",
-        prefer_scenic_route: "Préférer la route panoramique", layers: "Couches", roads: "Routes", pois: "Points d'intérêt",
-        incidents: "Incidents", display_panel_title: "Informations à proximité", route_finder: "Chercheur d'itinéraire",
-        find_route_btn: "Trouver l'itinéraire optimal", clear_route_btn: "Effacer l'itinéraire", share_route: "Partager l'itinéraire",
-        ai_chat_title: "Assistant IA", ai_chat_placeholder: "Écrivez un message...", menu_settings: "Paramètres",
-        menu_dashboard: "Tableau de bord", menu_driver: "Conducteur", ai_voice_response: "Réponse vocale de l'IA"
-    },
-    de: {
-        route_preferences: "Routenpräferenzen", prefer_highways: "Autobahnen bevorzugen", avoid_tolls: "Maut vermeiden",
-        prefer_scenic_route: "Szenische Route bevorzugen", layers: "Ebenen", roads: "Straßen", pois: "Orte von Interesse",
-        incidents: "Vorfälle", display_panel_title: "Informationen in der Nähe", route_finder: "Routenfinder",
-        find_route_btn: "Optimale Route finden", clear_route_btn: "Route löschen", share_route: "Route teilen",
-        ai_chat_title: "KI-Assistent", ai_chat_placeholder: "Nachricht eingeben...", menu_settings: "Einstellungen",
-        menu_dashboard: "Armaturenbrett", menu_driver: "Fahrer", ai_voice_response: "KI-Sprachantwort"
-    },
-    zh: {
-        route_preferences: "路线偏好", prefer_highways: "偏好高速公路", avoid_tolls: "避开收费站", prefer_scenic_route: "偏好风景路线",
-        layers: "图层", roads: "道路", pois: "兴趣点", incidents: "事件", display_panel_title: "附近信息",
-        route_finder: "路线查找器", find_route_btn: "查找最佳路线", clear_route_btn: "清除路线", share_route: "分享路线",
-        ai_chat_title: "AI 助手", ai_chat_placeholder: "输入消息...", menu_settings: "设置", menu_dashboard: "仪表板",
-        menu_driver: "司机", ai_voice_response: "AI语音回应"
-    },
-    ja: {
-        route_preferences: "ルート設定", prefer_highways: "高速道路を優先", avoid_tolls: "有料道路を避ける",
-        prefer_scenic_route: "景色の良いルートを優先", layers: "レイヤー", roads: "道路", pois: "興味のある地点",
-        incidents: "インシデント", display_panel_title: "周辺情報", route_finder: "ルートファインダー",
-        find_route_btn: "最適なルートを検索", clear_route_btn: "ルートをクリア", share_route: "ルートを共有",
-        ai_chat_title: "AIアシスタント", ai_chat_placeholder: "メッセージを入力...", menu_settings: "設定",
-        menu_dashboard: "ダッシュボード", menu_driver: "ドライバー", ai_voice_response: "AI音声応答"
-    },
-    ko: {
-        route_preferences: "경로 기본 설정", prefer_highways: "고속도로 선호", avoid_tolls: "유료 도로 피하기",
-        prefer_scenic_route: "경치 좋은 길 선호", layers: "레이어", roads: "도로", pois: "관심 지점",
-        incidents: "사건", display_panel_title: "주변 정보", route_finder: "경로 찾기", find_route_btn: "최적 경로 찾기",
-        clear_route_btn: "경로 지우기", share_route: "경로 공유", ai_chat_title: "AI 어시스턴트",
-        ai_chat_placeholder: "메시지를 입력하세요...", menu_settings: "설정", menu_dashboard: "대시보드", menu_driver: "운전자",
-        ai_voice_response: "AI 음성 응답"
-    },
-    new: { // Newari
-        route_preferences: "मार्ग प्राथमिकता", prefer_highways: "राजमार्गयात प्राथमिकता ब्यु", avoid_tolls: "टोलयात त्वताछ्व",
-        prefer_scenic_route: "रमणीय मार्गयात प्राथमिकता ब्यु", layers: "तह", roads: "सड़क", pois: "चासोया थाय्",
-        incidents: "घटना", display_panel_title: "नापजाःगु जानकारी", route_finder: "मार्ग मालेगु", find_route_btn: "उत्तम मार्ग मालेगु",
-        clear_route_btn: "मार्ग पुसेछ्व", share_route: "मार्ग सेयर यायेगु", ai_chat_title: "एआई सहायक",
-        ai_chat_placeholder: "सन्देश च्वयेु...", menu_settings: "सेटिङ", menu_dashboard: "ड्यासबोर्ड", menu_driver: "चालक",
-        ai_voice_response: "एआई भ्वाइस रेस्पोन्स"
-    },
-    mai: { // Maithili
-        route_preferences: "मार्ग प्राथमिकता", prefer_highways: "राजमार्गक प्राथमिकता दियौ", avoid_tolls: "टोलसँ बचू",
-        prefer_scenic_route: "रमणीय मार्गक प्राथमिकता दियौ", layers: "परत", roads: "सड़क", pois: "रुचिक स्थान",
-        incidents: "घटना", display_panel_title: "आसपासक जानकारी", route_finder: "मार्ग खोजक", find_route_btn: "उत्तम मार्ग खोजू",
-        clear_route_btn: "मार्ग साफ करू", share_route: "मार्ग साझा करू", ai_chat_title: "एआई सहायक",
-        ai_chat_placeholder: "संदेश टाइप करू...", menu_settings: "सेटिंग्स", menu_dashboard: "डैशबोर्ड", menu_driver: "चालक",
-        ai_voice_response: "एआई आवाज प्रतिक्रिया"
-    }
 };
 
+// =================================================================================
+// Speech Synthesis (Text-to-Speech) - Robust Queuing System
+// =================================================================================
 let availableVoices: SpeechSynthesisVoice[] = [];
-// This promise resolves only when the voices have been loaded, preventing race conditions.
+let speechQueue: string[] = [];
+let isSpeechEngineBusy = false;
+
 const voicesReadyPromise = new Promise<void>(resolve => {
     const checkVoices = () => {
         availableVoices = window.speechSynthesis.getVoices();
@@ -202,115 +162,70 @@ const voicesReadyPromise = new Promise<void>(resolve => {
         }
         return false;
     };
-
     if (speechSynthesis.onvoiceschanged !== undefined) {
         speechSynthesis.onvoiceschanged = checkVoices;
     }
-
-    // Check immediately, and if not loaded, rely on the event or a failsafe timeout.
     if (!checkVoices()) {
-         // Failsafe timeout for browsers that don't fire the event reliably
         setTimeout(() => {
             if(!checkVoices()) {
                console.warn("Speech synthesis voices did not load within the timeout. Speech may not work correctly.");
-               resolve(); // Resolve anyway to not block the app
+               resolve();
             }
         }, 1000);
     }
 });
 
-
-/**
- * Uses the Web Speech API to speak the given text, if enabled.
- * This version is async and waits for voices to be ready, making it highly robust.
- * @param {string} text The text to speak.
- */
-const speakText = async (text: string) => {
-    if (!isVoiceResponseEnabled || !('speechSynthesis' in window) || !text) {
-        return;
-    }
-
-    // Ensure the voices are loaded before we proceed. This is the core fix.
+const processSpeechQueue = async () => {
+    if (isSpeechEngineBusy || speechQueue.length === 0) return;
+    isSpeechEngineBusy = true;
+    const text = speechQueue.shift();
+    if (!text) { isSpeechEngineBusy = false; return; }
     await voicesReadyPromise;
-
-    // A small delay can help browsers that have issues with rapid cancel/speak calls.
-    if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
     const utterance = new SpeechSynthesisUtterance(text);
-
-    const langMap: { [key: string]: string } = {
-        en: 'en-US', np: 'ne-NP', hi: 'hi-IN', es: 'es-ES', fr: 'fr-FR',
-        de: 'de-DE', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR',
-        new: 'ne-NP', // Fallback Newari to Nepali
-        mai: 'hi-IN'  // Fallback Maithili to Hindi
-    };
+    const langMap: { [key: string]: string } = { en: 'en-US', np: 'ne-NP', hi: 'hi-IN' };
     const targetLang = langMap[currentLang] || 'en-US';
-
-    // Find the best available voice for the target language.
-    let voice = availableVoices.find(v => v.lang === targetLang);
-    if (!voice) {
-        voice = availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
-    }
-
-    if (voice) {
-        utterance.voice = voice;
-        utterance.lang = voice.lang;
-    } else {
-        // This is the critical fallback. If no specific voice is found, we do NOT
-        // set utterance.lang. This lets the browser use its default voice and
-        // PREVENTS the "language-unavailable" error.
-        console.warn(`Speech synthesis voice for lang '${targetLang}' not found. Using browser default.`);
-    }
-
+    let voice = availableVoices.find(v => v.lang === targetLang) || availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+    if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
     utterance.rate = 1.0;
     utterance.pitch = 1;
-
+    utterance.onend = () => { isSpeechEngineBusy = false; processSpeechQueue(); };
     utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror:', {
-            error: (event as any).error,
-            text: utterance.text.substring(0, 100) + '...',
-            requestedLang: targetLang,
-            usedVoice: utterance.voice ? { name: utterance.voice.name, lang: utterance.voice.lang } : 'default (none found)',
-            availableVoices: availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default}))
-        });
+        console.error('SpeechSynthesisUtterance.onerror:', { error: (event as any).error, text: utterance.text.substring(0, 100) + '...' });
+        isSpeechEngineBusy = false;
+        processSpeechQueue();
     };
-
     window.speechSynthesis.speak(utterance);
 };
 
+const speakText = (text: string) => {
+    if (!isVoiceResponseEnabled || !('speechSynthesis' in window) || !text) return;
+    speechQueue.push(text);
+    processSpeechQueue();
+};
+
+const cancelSpeech = () => {
+    speechQueue.length = 0;
+    isSpeechEngineBusy = false;
+    if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+};
+
+const t = (key: string): string => {
+    return (translations as any)[currentLang]?.[key] || (translations as any)['en']?.[key] || key;
+};
 
 document.addEventListener('DOMContentLoaded', () => {
-    const languageSelect = document.getElementById('language-select') as HTMLSelectElement;
-    const settingsPanel = document.getElementById('settings-panel') as HTMLElement;
-    const hamburgerMenu = document.getElementById('hamburger-menu') as HTMLButtonElement;
-    const blinkingDot = hamburgerMenu.querySelector('.blinking-dot') as HTMLElement;
-    const aiAssistantBtn = document.getElementById('ai-assistant') as HTMLButtonElement;
-    const aiChatModal = document.getElementById('ai-chat-modal') as HTMLElement;
-    const voiceResponseToggle = document.getElementById('toggle-voice-response') as HTMLInputElement;
-
     const updateLanguage = (lang: string) => {
         currentLang = lang;
-        const elements = document.querySelectorAll('[data-lang-key]');
-        elements.forEach(el => {
+        document.querySelectorAll('[data-lang-key]').forEach(el => {
             const key = el.getAttribute('data-lang-key');
-            if (key && (translations as any)[lang] && (translations as any)[lang][key]) {
-                el.textContent = (translations as any)[lang][key];
-            }
+            if (key) el.textContent = t(key);
         });
-        
-        const placeholderElements = document.querySelectorAll('[data-lang-key-placeholder]');
-        placeholderElements.forEach(el => {
+        document.querySelectorAll<HTMLInputElement>('[data-lang-key-placeholder]').forEach(el => {
             const key = el.getAttribute('data-lang-key-placeholder');
-            if (key && (translations as any)[lang] && (translations as any)[lang][key]) {
-                (el as HTMLInputElement).placeholder = (translations as any)[lang][key];
-            }
+            if (key) el.placeholder = t(key);
         });
     };
     
-    // --- App Initialization ---
     const init = () => {
         setupMap();
         loadData();
@@ -323,20 +238,16 @@ document.addEventListener('DOMContentLoaded', () => {
         simulateDriverEmotion();
         simulateVehicleOBD();
 
-        // Restore saved language or default to 'en'
         const savedLang = localStorage.getItem('appLanguage') || 'en';
-        languageSelect.value = savedLang;
+        (document.getElementById('language-select') as HTMLSelectElement).value = savedLang;
         updateLanguage(savedLang);
 
-        // Restore saved voice response preference
         const savedVoicePref = localStorage.getItem('isVoiceResponseEnabled');
-        if (savedVoicePref !== null) {
-            isVoiceResponseEnabled = savedVoicePref === 'true';
-            voiceResponseToggle.checked = isVoiceResponseEnabled;
-        } else {
-            voiceResponseToggle.checked = true;
-            isVoiceResponseEnabled = true;
-        }
+        isVoiceResponseEnabled = savedVoicePref !== null ? savedVoicePref === 'true' : true;
+        (document.getElementById('toggle-voice-response') as HTMLInputElement).checked = isVoiceResponseEnabled;
+
+        const savedMode = localStorage.getItem('appMode') as typeof currentAppMode || 'drive';
+        updateAppMode(savedMode);
     };
 
     const setupMap = () => {
@@ -344,101 +255,43 @@ document.addEventListener('DOMContentLoaded', () => {
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-
-        // Create zoom control and move it to our custom container
         const zoomControl = L.control.zoom({ position: 'bottomright' }).addTo(map);
-        const zoomControlElement = zoomControl.getContainer();
-        const overlayContainer = document.getElementById('map-overlays-bottom-right');
-
-        if (zoomControlElement && overlayContainer) {
-            // Append the zoom control to our custom container. It will now be part of the flex layout.
-            overlayContainer.appendChild(zoomControlElement);
-        }
-
+        document.getElementById('map-overlays-bottom-right')?.appendChild(zoomControl.getContainer());
         poisLayer = L.featureGroup().addTo(map);
         incidentsLayer = L.featureGroup().addTo(map);
     };
 
     const loadData = async () => {
         const roadsData = await api.getRoads();
-        roadsLayer = L.geoJSON(roadsData, {
-            style: (feature) => {
-                switch (feature.properties.status) {
-                    case 'good': return { color: "#2ecc71", weight: 5 };
-                    case 'fair': return { color: "#f39c12", weight: 5 };
-                    case 'poor': return { color: "#e74c3c", weight: 5, dashArray: '5, 10' };
-                    default: return { color: "#3498db", weight: 5 };
-                }
-            }
-        }).bindPopup(l => l.feature.properties.name).addTo(map);
-
+        roadsLayer = L.geoJSON(roadsData, { style: (f) => ({ color: f.properties.status === 'good' ? "#2ecc71" : f.properties.status === 'fair' ? "#f39c12" : "#e74c3c", weight: 5, dashArray: f.properties.status === 'poor' ? '5, 10' : undefined }) }).bindPopup(l => l.feature.properties.name).addTo(map);
         allPois = await api.getPOIs();
         allIncidents = await api.getIncidents();
-        
         renderPois(allPois);
         renderIncidents(allIncidents);
         updateDisplayPanel([...allPois, ...allIncidents]);
         setupDisplayPanelFilters();
     };
     
-    const renderPois = (pois: any[]) => {
-        poisLayer.clearLayers();
-        pois.forEach(poi => {
-            L.marker([poi.lat, poi.lng]).addTo(poisLayer)
-                .bindPopup(`<b>${poi.name}</b><br>${poi.status}`);
-        });
-    };
-
-    const renderIncidents = (incidents: any[]) => {
-        incidentsLayer.clearLayers();
-        incidents.forEach(incident => {
-            L.marker([incident.lat, incident.lng]).addTo(incidentsLayer)
-                .bindPopup(`<b>${incident.name}</b>`);
-        });
-    };
+    const renderPois = (pois: any[]) => { poisLayer.clearLayers(); pois.forEach(p => L.marker([p.lat, p.lng]).addTo(poisLayer).bindPopup(`<b>${p.name}</b><br>${p.status}`)); };
+    const renderIncidents = (incidents: any[]) => { incidentsLayer.clearLayers(); incidents.forEach(i => L.marker([i.lat, i.lng]).addTo(incidentsLayer).bindPopup(`<b>${i.name}</b>`)); };
 
     const setupDisplayPanelFilters = () => {
         const filtersContainer = document.getElementById('display-panel-filters')!;
-        filtersContainer.innerHTML = ''; // Clear existing filters
-
+        filtersContainer.innerHTML = '';
         const allItems = [...allPois, ...allIncidents];
         const categories = ['All', ...Array.from(new Set(allItems.map(item => item.category)))];
-        
-        // Map categories to Material Icons
-        const categoryToIconMap: { [key: string]: string } = {
-            'All': 'apps',
-            'landmark': 'account_balance',
-            'bridge': 'commit',
-            'hospital': 'local_hospital',
-            'coffee shop': 'local_cafe',
-            'shopping': 'shopping_cart',
-            'traffic': 'traffic',
-            'construction': 'construction'
-        };
-
+        const categoryToIconMap: { [key: string]: string } = { 'All': 'apps', 'landmark': 'account_balance', 'bridge': 'commit', 'hospital': 'local_hospital', 'coffee shop': 'local_cafe', 'shopping': 'shopping_cart', 'traffic': 'traffic', 'construction': 'construction' };
         categories.forEach(category => {
             const button = document.createElement('button');
-            const iconName = categoryToIconMap[category] || 'place'; // Default icon
-            const categoryLabel = category.charAt(0).toUpperCase() + category.slice(1);
-
             button.className = 'filter-btn';
-            button.innerHTML = `<span class="material-icons">${iconName}</span>`;
+            button.innerHTML = `<span class="material-icons">${categoryToIconMap[category] || 'place'}</span>`;
             button.dataset.category = category;
-            button.title = categoryLabel; // Tooltip for accessibility
-
-            if (category === 'All') {
-                button.classList.add('active');
-            }
-
+            button.title = category.charAt(0).toUpperCase() + category.slice(1);
+            if (category === 'All') button.classList.add('active');
             button.addEventListener('click', () => {
-                // Update active state
                 filtersContainer.querySelector('.filter-btn.active')?.classList.remove('active');
                 button.classList.add('active');
-
-                const filteredItems = category === 'All'
-                    ? allItems
-                    : allItems.filter(item => item.category === category);
-                updateDisplayPanel(filteredItems);
+                updateDisplayPanel(category === 'All' ? allItems : allItems.filter(item => item.category === category));
             });
             filtersContainer.appendChild(button);
         });
@@ -446,41 +299,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateDisplayPanel = (items: any[]) => {
         const listEl = document.getElementById('display-panel-list')!;
-        listEl.innerHTML = ''; // Clear list
-        if (items.length === 0) {
-            listEl.innerHTML = '<p style="text-align: center; padding: 1rem;">No items found.</p>';
-            return;
-        }
+        listEl.innerHTML = items.length === 0 ? '<p style="text-align: center; padding: 1rem;">No items found.</p>' : '';
         items.sort((a,b) => a.name.localeCompare(b.name)).forEach(item => {
             const card = document.createElement('div');
             card.className = 'info-card';
-            card.innerHTML = `
-                <h3>${item.name}</h3>
-                <p>${item.category}</p>
-                <span class="card-status ${item.status.toLowerCase().replace(/\s/g, '-')}">${item.status}</span>
-            `;
-            card.onclick = () => {
-                map.flyTo([item.lat, item.lng], 16);
-            };
+            card.innerHTML = `<h3>${item.name}</h3><p>${item.category}</p><span class="card-status ${item.status.toLowerCase().replace(/\s/g, '-')}">${item.status}</span>`;
+            card.onclick = () => map.flyTo([item.lat, item.lng], 16);
             listEl.appendChild(card);
         });
     };
     
-    const addMessageToChat = async (message: string, sender: 'user' | 'ai') => {
+    const addMessageToChat = (message: string, sender: 'user' | 'ai') => {
         const chatMessagesContainer = document.getElementById('chat-messages') as HTMLElement;
         const messageEl = document.createElement('div');
         messageEl.classList.add('message', sender === 'ai' ? 'ai-message' : 'user-message');
-        // A simple way to render potential markdown from the AI for better readability
-        const processedMessage = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-        messageEl.innerHTML = `<p>${processedMessage}</p>`;
+        messageEl.innerHTML = `<p>${message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</p>`;
         chatMessagesContainer.appendChild(messageEl);
         chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
-
-        if (sender === 'ai') {
-             // Don't speak intermediate messages like "Searching..."
-            if (!message.startsWith("Searching for")) {
-                await speakText(message);
-            }
+        if (sender === 'ai' && !message.startsWith("Searching for")) {
+            speakText(message);
         }
     };
 
@@ -488,398 +325,217 @@ document.addEventListener('DOMContentLoaded', () => {
         const chatForm = document.getElementById('chat-form') as HTMLFormElement;
         const chatInput = document.getElementById('chat-input') as HTMLInputElement;
         const typingIndicator = document.getElementById('typing-indicator') as HTMLElement;
-        const aiChatCloseBtn = document.getElementById('ai-chat-close') as HTMLButtonElement;
-        
-        // 1. Define the tool schema for the AI
-        const tools: Tool[] = [
-            {
-                functionDeclarations: [
-                    {
-                        name: "googleSearch",
-                        description: "Search for information about specific points of interest (POIs) and incidents in the local Kathmandu area.",
-                        parameters: {
-                            type: Type.OBJECT,
-                            properties: {
-                                searchQuery: {
-                                    type: Type.STRING,
-                                    description: "The name of the place or incident to search for (e.g., 'Thapathali Bridge', 'Traffic Jam at Baneshwor')."
-                                }
-                            },
-                            required: ["searchQuery"]
-                        }
-                    }
-                ]
-            }
-        ];
-        
-        // 2. Implement the tool function. This simulates a search within the app's data.
+        const tools: Tool[] = [{ functionDeclarations: [{ name: "googleSearch", description: "Search for information about specific points of interest (POIs) and incidents in the local Kathmandu area.", parameters: { type: Type.OBJECT, properties: { searchQuery: { type: Type.STRING, description: "The name of the place or incident to search for (e.g., 'Thapathali Bridge')." } }, required: ["searchQuery"] } }] }];
         const googleSearch = ({ searchQuery }: { searchQuery: string }) => {
-            console.log(`AI tool executing search for: "${searchQuery}"`);
-            const query = searchQuery.toLowerCase().trim();
-            // Search both POIs and Incidents
-            const results = [...allPois, ...allIncidents].filter(item =>
-                item.name.toLowerCase().includes(query)
-            );
-
-            if (results.length > 0) {
-                // Return structured data for the AI to interpret
-                return { 
-                    results: results.map(r => ({ name: r.name, category: r.category, status: r.status })) 
-                };
-            } else {
-                return { results: `No information found for "${searchQuery}".` };
-            }
+            const results = [...allPois, ...allIncidents].filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase().trim()));
+            return { results: results.length > 0 ? results.map(r => ({ name: r.name, category: r.category, status: r.status })) : `No information found for "${searchQuery}".` };
         };
-
-        const availableTools = {
-            googleSearch,
-        };
-
-        // 3. Update chat logic to handle the function-calling flow
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const userInput = chatInput.value.trim();
             if (!userInput) return;
-
-            window.speechSynthesis.cancel();
-            await addMessageToChat(userInput, 'user');
+            cancelSpeech();
+            addMessageToChat(userInput, 'user');
             chatInput.value = '';
             typingIndicator.classList.remove('hidden');
-
             try {
                 if (!activeChat) {
-                     activeChat = ai.chats.create({
-                        model: 'gemini-2.5-flash',
-                        config: {
-                            tools: tools, // Pass tool schema to the chat model
-                            // Update system instructions to inform the AI about its new role as a proactive co-pilot
-                            systemInstruction: "You are a helpful and proactive road assistant for Nepal called Sadak Sathi. You are a co-pilot. Your primary role is to provide concise and relevant information about roads, points of interest, and driving conditions. When asked about specific locations, use the googleSearch tool to find up-to-date information. IMPORTANT: You will also receive automated system alerts about driver status and vehicle health. When these alerts come in, your next response to the user should directly address the alert and offer help (e.g., suggest a break, or offer to find a petrol station or repair shop)."
-                        }
-                    });
+                     activeChat = ai.chats.create({ model: 'gemini-2.5-flash', config: { tools: tools, systemInstruction: `You are a helpful and proactive road assistant for Nepal called Sadak Sathi. The user is currently in '${currentAppMode}' mode. Tailor your responses accordingly. Use the googleSearch tool for specific locations. You will also receive automated system alerts about driver status and vehicle health; address these proactively.` } });
                 }
-
                 let response: GenerateContentResponse = await activeChat.sendMessage({ message: userInput });
-                
-                // This loop handles the back-and-forth for function calling
                 while (true) {
                     const functionCall = response.candidates?.[0]?.content?.parts[0]?.functionCall;
-                    
-                    if (!functionCall) {
-                        break; // Exit loop if no function call is present in the response
-                    }
-
-                    const { name, args } = functionCall;
-                    const toolFunction = (availableTools as any)[name];
-
-                    if (!toolFunction) {
-                        throw new Error(`Error: Unknown tool "${name}" requested by the model.`);
-                    }
-                    
-                    if (args.searchQuery) {
-                       await addMessageToChat(`Searching for '${args.searchQuery}'...`, 'ai');
-                    }
-                    
-                    // Call the local function that implements the tool
-                    const result = toolFunction(args);
-                    
-                    // Send the tool's result back to the model
-                    response = await activeChat.sendMessage({
-                        contents: {
-                            parts: [
-                                {
-                                    functionResponse: {
-                                        name: name,
-                                        response: result
-                                    }
-                                }
-                            ]
-                        }
-                    });
+                    if (!functionCall) break;
+                    // Fix: Cast functionCall.args to the expected type to resolve TypeScript error.
+                    const args = functionCall.args as { searchQuery: string };
+                    addMessageToChat(`Searching for '${args.searchQuery}'...`, 'ai');
+                    const result = googleSearch(args);
+                    response = await activeChat.sendMessage({ contents: { parts: [{ functionResponse: { name: functionCall.name, response: result } }] } });
                 }
-                
-                // Display the final text response from the AI
-                await addMessageToChat(response.text, 'ai');
-
+                addMessageToChat(response.text, 'ai');
             } catch (error) {
                 console.error("AI Chat Error:", error);
-                await addMessageToChat("Sorry, I'm having trouble connecting right now.", 'ai');
+                addMessageToChat("Sorry, I'm having trouble connecting right now.", 'ai');
             } finally {
                 typingIndicator.classList.add('hidden');
             }
         });
-        
-        aiChatCloseBtn.addEventListener('click', () => {
-            aiChatModal.classList.add('hidden');
-            window.speechSynthesis.cancel(); // Stop speaking when chat is closed
-        });
     };
     
-    /**
-     * Proactively sends an alert to the user via the AI chat.
-     * @param {string} message The alert message.
-     */
-    const triggerAIAlert = async (message: string) => {
-        // Open the chat if it's closed to show the alert
-        const aiChatModal = document.getElementById('ai-chat-modal') as HTMLElement;
-        if (aiChatModal.classList.contains('hidden')) {
-            aiChatModal.classList.remove('hidden');
-        }
-        
-        await addMessageToChat(message, 'ai');
-        
-        // Also send the alert to the AI model's history so it has context
+    const triggerAIAlert = (message: string) => {
+        (document.getElementById('ai-chat-modal') as HTMLElement).classList.remove('hidden');
+        addMessageToChat(message, 'ai');
         if (activeChat) {
-            try {
-                // We send a combined message to the model for context.
-                // The model's response will be what it says to the user next.
-                const systemMessageForAI = `System Alert Triggered: ${message}. How should I respond to the user about this?`;
-                const response = await activeChat.sendMessage({ message: systemMessageForAI });
-                await addMessageToChat(response.text, 'ai');
-            } catch (error) {
-                console.error("Error sending system alert to AI:", error);
-            }
+            (async () => {
+                try {
+                    const response = await activeChat.sendMessage({ message: `System Alert Triggered: ${message}. How should I respond to the user?` });
+                    addMessageToChat(response.text, 'ai');
+                } catch (error) { console.error("Error sending system alert to AI:", error); }
+            })();
         }
     };
 
     const updateGpsStatus = (status: 'searching' | 'connected' | 'lost') => {
         const indicator = document.getElementById('gps-status-indicator');
-        if (indicator) {
-            indicator.className = ''; // Reset classes
-            indicator.classList.add(status);
-            indicator.title = `GPS Status: ${status.charAt(0).toUpperCase() + status.slice(1)}`;
-        }
+        if (indicator) { indicator.className = status; indicator.title = `GPS Status: ${status.charAt(0).toUpperCase() + status.slice(1)}`; }
     };
 
     const simulateGpsStatus = () => {
         const states: ('searching' | 'connected' | 'lost')[] = ['searching', 'connected', 'lost'];
-        let currentStateIndex = 0;
-
-        const cycleStatus = () => {
-            const currentStatus = states[currentStateIndex];
-            updateGpsStatus(currentStatus);
-
-            // Set the duration for the current state before scheduling the next one.
-            let duration;
-            switch (currentStatus) {
-                case 'searching':
-                    duration = 4000; // 4 seconds
-                    break;
-                case 'connected':
-                    duration = 10000; // 10 seconds
-                    break;
-                case 'lost':
-                    duration = 4000; // 4 seconds
-                    break;
-                default:
-                    duration = 5000; // Fallback
-            }
-
-            // Move to the next state for the next cycle.
-            currentStateIndex = (currentStateIndex + 1) % states.length;
-
-            // Schedule the next update.
-            setTimeout(cycleStatus, duration);
+        let i = 0;
+        const cycle = () => {
+            const status = states[i];
+            updateGpsStatus(status);
+            i = (i + 1) % states.length;
+            setTimeout(cycle, status === 'connected' ? 10000 : 4000);
         };
-
-        // Start the simulation cycle.
-        cycleStatus();
+        cycle();
     };
 
-
     const setupCockpitWidgets = () => {
-        let currentSpeed = 0;
-        let currentHeading = 0;
-
-        const speedValueEl = document.querySelector('#speed-widget .value') as HTMLElement;
-        const compassRoseEl = document.querySelector('#compass-widget .compass-rose') as HTMLElement;
-
-        if (!speedValueEl || !compassRoseEl) {
-            console.error("Cockpit widgets not found in the DOM.");
-            return;
-        }
-
-        const degreesToCardinal = (deg: number): string => {
-            const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'];
-            return cardinals[Math.round(deg / 45)];
-        };
-
+        let speed = 0, heading = 0;
+        const speedEl = document.querySelector('#speed-widget .value'), compassEl = document.querySelector('#compass-widget .compass-rose');
+        if (!speedEl || !compassEl) return;
+        const degToCard = (d: number) => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'][Math.round(d / 45)];
         setInterval(() => {
-            // Simulate speed change
-            const speedChange = (Math.random() - 0.45) * 10; // Bias towards acceleration
-            currentSpeed += speedChange;
-            currentSpeed = Math.max(0, Math.min(85, currentSpeed)); // Clamp between 0 and 85
-
-            // Simulate heading change
-            const headingChange = (Math.random() - 0.5) * 20;
-            currentHeading = (currentHeading + headingChange + 360) % 360;
-
-            // Update DOM
-            speedValueEl.textContent = Math.round(currentSpeed).toString();
-            compassRoseEl.textContent = degreesToCardinal(currentHeading);
-
-        }, 2500); // Update every 2.5 seconds
+            speed = Math.max(0, Math.min(85, speed + (Math.random() - 0.45) * 10));
+            heading = (heading + (Math.random() - 0.5) * 20 + 360) % 360;
+            speedEl.textContent = Math.round(speed).toString();
+            compassEl.textContent = degToCard(heading);
+        }, 2500);
     };
 
     const simulateWeather = () => {
-        const weatherIconEl = document.getElementById('weather-icon');
-        const weatherTempEl = document.getElementById('weather-temp');
-        if (!weatherIconEl || !weatherTempEl) return;
-
-        const weatherStates = [
-            { icon: 'sunny', temp: 28 },
-            { icon: 'cloud', temp: 24 },
-            { icon: 'thunderstorm', temp: 21 },
-            { icon: 'ac_unit', temp: 18 }
-        ];
-        let currentStateIndex = 0;
-        
-        const updateWeather = () => {
-            const newState = weatherStates[currentStateIndex];
-            weatherIconEl.textContent = newState.icon;
-            weatherTempEl.textContent = `${newState.temp}°C`;
-            // Add a class for color styling
-            weatherIconEl.className = 'material-icons'; // Reset
-            if (newState.icon === 'sunny') weatherIconEl.classList.add('sunny');
-            else if (newState.icon === 'cloud') weatherIconEl.classList.add('cloudy');
-            else if (newState.icon === 'thunderstorm') weatherIconEl.classList.add('stormy');
-            else if (newState.icon === 'ac_unit') weatherIconEl.classList.add('cold');
-
-            currentStateIndex = (currentStateIndex + 1) % weatherStates.length;
+        const iconEl = document.getElementById('weather-icon'), tempEl = document.getElementById('weather-temp');
+        if (!iconEl || !tempEl) return;
+        const states = [ { i: 'sunny', t: 28, c: 'sunny' }, { i: 'cloud', t: 24, c: 'cloudy' }, { i: 'thunderstorm', t: 21, c: 'stormy' }, { i: 'ac_unit', t: 18, c: 'cold' } ];
+        let i = 0;
+        const update = () => {
+            const s = states[i];
+            iconEl.textContent = s.i;
+            tempEl.textContent = `${s.t}°C`;
+            iconEl.className = 'material-icons ' + s.c;
+            i = (i + 1) % states.length;
         };
-
-        updateWeather(); // Run once immediately
-        setInterval(updateWeather, 15000); // Change every 15 seconds
+        update();
+        setInterval(update, 15000);
     };
 
     const simulateUserLocation = () => {
-        const locationNameEl = document.getElementById('location-name');
-        const locationCoordsEl = document.getElementById('location-coords');
-        if (!locationNameEl || !locationCoordsEl) return;
-        
-        const locations = [
-            { name: "Thamel, Kathmandu", coords: "27.71, 85.31" },
-            { name: "Patan Durbar Square", coords: "27.67, 85.32" },
-            { name: "Boudhanath Stupa", coords: "27.72, 85.36" },
-            { name: "Swayambhunath", coords: "27.71, 85.29" }
-        ];
-        let currentLocationIndex = 0;
-
+        const nameEl = document.getElementById('location-name'), coordsEl = document.getElementById('location-coords');
+        if (!nameEl || !coordsEl) return;
+        const locs = [ { n: "Thamel, Kathmandu", c: "27.71, 85.31" }, { n: "Patan Durbar Square", c: "27.67, 85.32" }, { n: "Boudhanath Stupa", c: "27.72, 85.36" } ];
+        let i = 0;
         setInterval(() => {
-            currentLocationIndex = (currentLocationIndex + 1) % locations.length;
-            const newLocation = locations[currentLocationIndex];
-            locationNameEl.textContent = newLocation.name;
-            locationCoordsEl.textContent = newLocation.coords;
-        }, 12000); // Change every 12 seconds
+            i = (i + 1) % locs.length;
+            nameEl.textContent = locs[i].n;
+            coordsEl.textContent = locs[i].c;
+        }, 12000);
     };
     
     const simulateDriverEmotion = () => {
-        const statusIconEl = document.getElementById('driver-status-icon');
-        const statusTextEl = document.getElementById('driver-status-text');
-        if (!statusIconEl || !statusTextEl) return;
-
-        const states = [
-            { status: 'Calm', icon: 'sentiment_very_satisfied', duration: 20000, alert: null },
-            { status: 'Tired', icon: 'sentiment_dissatisfied', duration: 10000, alert: "System Alert: Driver appears tired. It might be a good time to take a short break." },
-            { status: 'Calm', icon: 'sentiment_very_satisfied', duration: 20000, alert: null },
-            { status: 'Stressed', icon: 'sentiment_very_dissatisfied', duration: 10000, alert: "System Alert: Driver appears stressed. Consider pulling over for a moment." }
-        ];
-        let currentStateIndex = 0;
-        let alertSentForState = false;
-
-        const cycleState = () => {
-            const currentState = states[currentStateIndex];
-            
-            statusIconEl.textContent = currentState.icon;
-            statusTextEl.textContent = currentState.status;
-            statusTextEl.className = `status-text ${currentState.status.toLowerCase()}`;
-            
-            if(currentState.alert && !alertSentForState) {
-                triggerAIAlert(currentState.alert);
-                alertSentForState = true;
-            }
-
-            currentStateIndex = (currentStateIndex + 1) % states.length;
-            // Reset alert flag when moving to a new state
-            if(currentStateIndex !== (currentStateIndex - 1 + states.length) % states.length) {
-                alertSentForState = false;
-            }
-
-            setTimeout(cycleState, currentState.duration);
+        const iconEl = document.getElementById('driver-status-icon'), textEl = document.getElementById('driver-status-text');
+        if (!iconEl || !textEl) return;
+        const states = [ { s: 'Calm', i: 'sentiment_very_satisfied', d: 20000, a: null }, { s: 'Tired', i: 'sentiment_dissatisfied', d: 10000, a: "System Alert: Driver appears tired. It might be a good time to take a short break." }, { s: 'Calm', i: 'sentiment_very_satisfied', d: 20000, a: null }, { s: 'Stressed', i: 'sentiment_very_dissatisfied', d: 10000, a: "System Alert: Driver appears stressed. Consider pulling over for a moment." } ];
+        let i = 0, alertSent = false;
+        const cycle = () => {
+            const s = states[i];
+            iconEl.textContent = s.i;
+            textEl.textContent = s.s;
+            textEl.className = `status-text ${s.s.toLowerCase()}`;
+            if(s.a && !alertSent) { triggerAIAlert(s.a); alertSent = true; }
+            const prev = i;
+            i = (i + 1) % states.length;
+            if (prev !== i) alertSent = false;
+            setTimeout(cycle, s.d);
         };
-        cycleState();
+        cycle();
     };
 
     const simulateVehicleOBD = () => {
-        let fuel = 85, temp = 90, pressure = 32;
-        let isLowFuelAlertSent = false, isLowPressureAlertSent = false;
-        
-        const fuelValueEl = document.getElementById('fuel-value');
-        const fuelBarEl = document.getElementById('fuel-bar');
-        const tempValueEl = document.getElementById('temp-value');
-        const tempBarEl = document.getElementById('temp-bar');
-        const pressureValueEl = document.getElementById('pressure-value');
-        const pressureBarEl = document.getElementById('pressure-bar');
-        
-        if(!fuelValueEl || !fuelBarEl || !tempValueEl || !tempBarEl || !pressureValueEl || !pressureBarEl) return;
-
+        let f = 85, t = 90, p = 32, fA = false, pA = false;
+        const fV = document.getElementById('fuel-value'), fB = document.getElementById('fuel-bar'), tV = document.getElementById('temp-value'), tB = document.getElementById('temp-bar'), pV = document.getElementById('pressure-value'), pB = document.getElementById('pressure-bar');
+        if(!fV || !fB || !tV || !tB || !pV || !pB) return;
         setInterval(() => {
-            // Simulate data change
-            fuel -= Math.random() * 0.5;
-            temp += (Math.random() - 0.5) * 2;
-            pressure -= Math.random() * 0.1;
-            
-            fuel = Math.max(0, fuel);
-            temp = Math.max(70, Math.min(120, temp));
-            pressure = Math.max(20, pressure);
-
-            // Update UI
-            fuelValueEl.textContent = `${Math.round(fuel)}%`;
-            fuelBarEl.style.width = `${fuel}%`;
-            tempValueEl.textContent = `${Math.round(temp)}°C`;
-            tempBarEl.style.width = `${((temp - 70) / 50) * 100}%`; // Normalize temp range
-            pressureValueEl.textContent = `${Math.round(pressure)} PSI`;
-            pressureBarEl.style.width = `${((pressure - 20) / 15) * 100}%`; // Normalize pressure range
-
-            // Update bar colors based on value
-            fuelBarEl.className = fuel > 20 ? 'bar-good' : fuel > 10 ? 'bar-warn' : 'bar-danger';
-            tempBarEl.className = temp < 105 ? 'bar-good' : temp < 115 ? 'bar-warn' : 'bar-danger';
-            pressureBarEl.className = pressure > 28 ? 'bar-good' : pressure > 25 ? 'bar-warn' : 'bar-danger';
-            
-            // Trigger AI Alerts
-            if (fuel < 15 && !isLowFuelAlertSent) {
-                triggerAIAlert("System Alert: Fuel level is critically low. I can search for nearby petrol stations.");
-                isLowFuelAlertSent = true;
-            } else if (fuel > 20) {
-                isLowFuelAlertSent = false; // Reset alert when refueled
-            }
-
-            if (pressure < 26 && !isLowPressureAlertSent) {
-                triggerAIAlert("System Alert: Tire pressure is low. I can find the nearest repair shop for you.");
-                isLowPressureAlertSent = true;
-            } else if (pressure > 28) {
-                isLowPressureAlertSent = false; // Reset alert when inflated
-            }
-
+            f = Math.max(0, f - Math.random()*0.5); t = Math.max(70, Math.min(120, t + (Math.random()-0.5)*2)); p = Math.max(20, p-Math.random()*0.1);
+            fV.textContent = `${Math.round(f)}%`; fB.style.width = `${f}%`; tV.textContent = `${Math.round(t)}°C`; tB.style.width = `${((t - 70) / 50) * 100}%`; pV.textContent = `${Math.round(p)} PSI`; pB.style.width = `${((p-20)/15)*100}%`;
+            fB.className = `progress-bar ${f > 20 ? 'bar-good' : f > 10 ? 'bar-warn' : 'bar-danger'}`; tB.className = `progress-bar ${t < 105 ? 'bar-good' : t < 115 ? 'bar-warn' : 'bar-danger'}`; pB.className = `progress-bar ${p > 28 ? 'bar-good' : p > 25 ? 'bar-warn' : 'bar-danger'}`;
+            if (f < 15 && !fA) { triggerAIAlert("System Alert: Fuel level is critically low. I can search for nearby petrol stations."); fA = true; } else if (f > 20) fA = false;
+            if (p < 26 && !pA) { triggerAIAlert("System Alert: Tire pressure is low. I can find the nearest repair shop for you."); pA = true; } else if (p > 28) pA = false;
         }, 3000);
     };
 
+    const updateAppMode = (mode: typeof currentAppMode) => {
+        currentAppMode = mode;
+        const appContainer = document.getElementById('app-container')!;
+        appContainer.dataset.mode = mode;
+        localStorage.setItem('appMode', mode);
 
+        const modeBtn = document.getElementById('app-mode-btn')!;
+        const iconEl = modeBtn.querySelector('.material-icons')!;
+        const labelEl = modeBtn.querySelector('.label')!;
+        
+        const modeConfig = {
+            drive: { icon: 'directions_car', labelKey: 'mode_drive' },
+            ride: { icon: 'person', labelKey: 'mode_ride' },
+            explore: { icon: 'explore', labelKey: 'mode_explore' },
+            connect: { icon: 'group', labelKey: 'mode_connect' }
+        };
+
+        iconEl.textContent = modeConfig[mode].icon;
+        labelEl.setAttribute('data-lang-key', modeConfig[mode].labelKey);
+        labelEl.textContent = t(modeConfig[mode].labelKey);
+        
+        // Toggle contextual buttons
+        document.getElementById('dashboard-btn')!.classList.toggle('hidden', mode !== 'drive');
+        const isSosVisible = mode === 'ride' || mode === 'explore' || mode === 'connect';
+        document.getElementById('sos-btn')!.classList.toggle('hidden', !isSosVisible);
+        document.getElementById('share-trip-btn')!.classList.toggle('hidden', mode !== 'connect');
+    };
+
+    const handleShareTrip = async () => {
+        const shareBtn = document.getElementById('share-trip-btn')!;
+        const shareModal = document.getElementById('share-trip-modal')!;
+        const startContent = document.getElementById('start-sharing-content')!;
+        const stopContent = document.getElementById('stop-sharing-content')!;
+        
+        if (isSharingTrip) { // Stop sharing
+            isSharingTrip = false;
+            shareBtn.classList.remove('active');
+            startContent.classList.remove('hidden');
+            stopContent.classList.add('hidden');
+            shareModal.classList.add('hidden');
+        } else { // Start sharing
+            const shareData = {
+                title: 'Sadak Sathi Live Trip',
+                text: "I'm sharing my live trip with you. Follow my journey!",
+                url: `https://sadak-sathi.example.com/trip/${Date.now()}` // Dummy URL
+            };
+            if (navigator.share) {
+                try {
+                    await navigator.share(shareData);
+                    isSharingTrip = true;
+                    shareBtn.classList.add('active');
+                    startContent.classList.add('hidden');
+                    stopContent.classList.remove('hidden');
+                } catch (err) { console.error("Could not share trip:", err); }
+            } else { alert("Web Share API not supported on this browser."); }
+        }
+    };
+    
     const setupEventListeners = () => {
-        // Language switcher
-        const languageSelect = document.getElementById('language-select') as HTMLSelectElement;
-        languageSelect.addEventListener('change', (e) => {
+        const langSelect = document.getElementById('language-select') as HTMLSelectElement;
+        langSelect.addEventListener('change', (e) => {
             const lang = (e.target as HTMLSelectElement).value;
             updateLanguage(lang);
             localStorage.setItem('appLanguage', lang);
         });
 
-        // Settings panel toggle
-        const settingsPanel = document.getElementById('settings-panel') as HTMLElement;
-        const hamburgerMenu = document.getElementById('hamburger-menu') as HTMLButtonElement;
-        const blinkingDot = hamburgerMenu.querySelector('.blinking-dot') as HTMLElement;
+        const settingsPanel = document.getElementById('settings-panel')!;
+        const hamburgerMenu = document.getElementById('hamburger-menu')!;
         hamburgerMenu.addEventListener('click', () => {
             settingsPanel.classList.toggle('open');
-            blinkingDot.classList.add('hide');
+            hamburgerMenu.querySelector('.blinking-dot')?.classList.add('hide');
         });
         document.addEventListener('click', (e) => {
             if (!settingsPanel.contains(e.target as Node) && !hamburgerMenu.contains(e.target as Node)) {
@@ -887,72 +543,58 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // AI Chat modal toggle
-        const aiAssistantBtn = document.getElementById('ai-assistant') as HTMLButtonElement;
-        const aiChatModal = document.getElementById('ai-chat-modal') as HTMLElement;
-        aiAssistantBtn.addEventListener('click', () => {
-            aiChatModal.classList.remove('hidden');
+        (document.getElementById('ai-assistant') as HTMLButtonElement).addEventListener('click', () => {
+            (document.getElementById('ai-chat-modal') as HTMLElement).classList.remove('hidden');
+        });
+        (document.getElementById('ai-chat-close') as HTMLButtonElement).addEventListener('click', () => {
+             (document.getElementById('ai-chat-modal') as HTMLElement).classList.add('hidden');
+             cancelSpeech();
         });
 
-        // Route Finder Panel Toggle
-        const routeFinderTrigger = document.getElementById('route-finder-trigger') as HTMLButtonElement;
-        const routeFinderPanel = document.getElementById('route-finder-panel') as HTMLElement;
-        const routeFinderCloseBtn = document.getElementById('route-finder-close') as HTMLButtonElement;
-
-        if(routeFinderTrigger && routeFinderPanel && routeFinderCloseBtn) {
-            routeFinderTrigger.addEventListener('click', () => {
-                routeFinderPanel.classList.remove('hidden');
-            });
-            routeFinderCloseBtn.addEventListener('click', () => {
-                routeFinderPanel.classList.add('hidden');
-            });
-        }
-
-        // Voice response toggle
+        const routeFinderPanel = document.getElementById('route-finder-panel')!;
+        document.getElementById('route-finder-trigger')?.addEventListener('click', () => routeFinderPanel.classList.remove('hidden'));
+        document.getElementById('route-finder-close')?.addEventListener('click', () => routeFinderPanel.classList.add('hidden'));
+        
         const voiceResponseToggle = document.getElementById('toggle-voice-response') as HTMLInputElement;
         voiceResponseToggle.addEventListener('change', () => {
             isVoiceResponseEnabled = voiceResponseToggle.checked;
             localStorage.setItem('isVoiceResponseEnabled', String(isVoiceResponseEnabled));
-            if (!isVoiceResponseEnabled) {
-                window.speechSynthesis.cancel();
-            }
+            if (!isVoiceResponseEnabled) cancelSpeech();
         });
-        
-        // Display panel toggle
-        const displayPanel = document.getElementById('display-panel');
-        const displayPanelHeader = document.getElementById('display-panel-header');
-        if(displayPanel && displayPanelHeader) {
-            displayPanelHeader.addEventListener('click', () => {
-                displayPanel.classList.toggle('collapsed');
-            });
-            // Initially set to collapsed
-             displayPanel.classList.add('collapsed');
-        }
-        
-        // Driver Dashboard Toggle
-        const dashboardBtn = document.getElementById('dashboard-btn') as HTMLButtonElement;
-        const driverDashboard = document.getElementById('driver-dashboard') as HTMLElement;
-        if(dashboardBtn && driverDashboard) {
-            dashboardBtn.addEventListener('click', () => {
-                driverDashboard.classList.toggle('open');
-            });
-        }
 
-        // Layer toggles
-        (document.getElementById('toggle-roads') as HTMLInputElement).addEventListener('change', (e) => {
-            if ((e.target as HTMLInputElement).checked) map.addLayer(roadsLayer);
-            else map.removeLayer(roadsLayer);
+        const displayPanel = document.getElementById('display-panel')!;
+        displayPanel.querySelector('#display-panel-header')?.addEventListener('click', () => displayPanel.classList.toggle('collapsed'));
+        displayPanel.classList.add('collapsed');
+
+        document.getElementById('dashboard-btn')?.addEventListener('click', () => document.getElementById('driver-dashboard')?.classList.toggle('open'));
+
+        (document.getElementById('toggle-roads') as HTMLInputElement).addEventListener('change', (e) => map.getPane('overlayPane')?.contains(roadsLayer) ? map.removeLayer(roadsLayer) : map.addLayer(roadsLayer));
+        (document.getElementById('toggle-pois') as HTMLInputElement).addEventListener('change', (e) => map.hasLayer(poisLayer) ? map.removeLayer(poisLayer) : map.addLayer(poisLayer));
+        (document.getElementById('toggle-incidents') as HTMLInputElement).addEventListener('change', (e) => map.hasLayer(incidentsLayer) ? map.removeLayer(incidentsLayer) : map.addLayer(incidentsLayer));
+
+        // New Mode Switching Event Listeners
+        const appModeModal = document.getElementById('app-mode-modal')!;
+        document.getElementById('app-mode-btn')?.addEventListener('click', () => appModeModal.classList.remove('hidden'));
+        appModeModal.querySelectorAll('.mode-select-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.getAttribute('data-mode') as typeof currentAppMode;
+                updateAppMode(mode);
+                appModeModal.classList.add('hidden');
+            });
         });
-        (document.getElementById('toggle-pois') as HTMLInputElement).addEventListener('change', (e) => {
-            if ((e.target as HTMLInputElement).checked) map.addLayer(poisLayer);
-            else map.removeLayer(poisLayer);
-        });
-        (document.getElementById('toggle-incidents') as HTMLInputElement).addEventListener('change', (e) => {
-            if ((e.target as HTMLInputElement).checked) map.addLayer(incidentsLayer);
-            else map.removeLayer(incidentsLayer);
-        });
+        document.getElementById('app-mode-modal-close')?.addEventListener('click', () => appModeModal.classList.add('hidden'));
+
+        // New Feature Event Listeners
+        const sosModal = document.getElementById('sos-modal')!;
+        document.getElementById('sos-btn')?.addEventListener('click', () => sosModal.classList.remove('hidden'));
+        document.getElementById('sos-modal-close')?.addEventListener('click', () => sosModal.classList.add('hidden'));
+
+        const shareTripModal = document.getElementById('share-trip-modal')!;
+        document.getElementById('share-trip-btn')?.addEventListener('click', () => shareTripModal.classList.remove('hidden'));
+        document.getElementById('share-trip-modal-close')?.addEventListener('click', () => shareTripModal.classList.add('hidden'));
+        document.getElementById('start-sharing-btn')?.addEventListener('click', handleShareTrip);
+        document.getElementById('stop-sharing-btn')?.addEventListener('click', handleShareTrip);
     };
 
-    // --- Let's go! ---
     init();
 });

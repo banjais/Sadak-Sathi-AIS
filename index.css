@@ -285,7 +285,7 @@ html, body {
     display: flex;
     justify-content: center; /* Centered layout */
     align-items: center;
-    gap: 1.5rem; /* Space between centered items */
+    gap: 1rem; /* Space between centered items */
     padding: 0.5rem 1rem;
     background-color: var(--header-bg-color);
     backdrop-filter: blur(8px);
@@ -296,8 +296,11 @@ html, body {
 .menu-item {
     display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none;
     color: var(--text-color-muted); cursor: pointer; font-size: 0.75rem; transition: color 0.2s; padding: 4px;
+    min-width: 60px; /* Ensure items have a consistent width */
 }
 .menu-item.active, .menu-item:hover { color: var(--primary-color); }
+#app-mode-btn { color: var(--primary-color); font-weight: 500;}
+
 #hamburger-menu { position: relative; }
 .blinking-dot {
     position: absolute; top: 2px; right: 8px; width: 8px; height: 8px; background-color: var(--danger-color);
@@ -437,8 +440,6 @@ html, body {
 .layer-toggle:last-child { margin-bottom: 0; }
 
 /* Leaflet control repositioning */
-/* The leaflet-control-zoom element is now inside #map-overlays-bottom-right,
-   so we no longer need to position its original container. */
 .leaflet-control-zoom {
     border: none !important;
     box-shadow: 0 2px 5px var(--shadow-color) !important;
@@ -562,3 +563,59 @@ html, body {
 .bar-good { background-color: var(--success-color); }
 .bar-warn { background-color: var(--warning-color); }
 .bar-danger { background-color: var(--danger-color); }
+
+
+/* Generic Modal Styles */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px); z-index: 2500; display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+}
+.modal-overlay:not(.hidden) { opacity: 1; visibility: visible; }
+.modal-content {
+    background: var(--panel-bg-color); padding: 1.5rem; border-radius: 12px;
+    width: 90%; max-width: 400px; box-shadow: 0 5px 25px var(--shadow-color);
+    position: relative; text-align: center;
+}
+.modal-content h3 { margin-bottom: 1rem; }
+.modal-close-btn { position: absolute; top: 8px; right: 8px; }
+
+/* App Mode Modal Specific Styles */
+.mode-selection {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+.mode-select-btn {
+    background: var(--bg-color); border: 1px solid var(--border-color);
+    color: var(--text-color); padding: 1rem; border-radius: 8px;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+}
+.mode-select-btn:hover { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+.mode-select-btn .material-icons { font-size: 2rem; }
+
+/* Share Trip & SOS Modal Buttons */
+.primary-btn, .danger-btn {
+    padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer;
+    font-size: 1rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.5rem;
+}
+.primary-btn { background-color: var(--primary-color); color: white; }
+.danger-btn { background-color: var(--danger-color); color: white; }
+
+#share-trip-btn.active { color: var(--success-color); animation: glow 1.5s infinite; }
+@keyframes glow {
+  0%, 100% { text-shadow: 0 0 5px var(--success-color); }
+  50% { text-shadow: 0 0 15px var(--success-color); }
+}
+
+/* Conditional UI visibility based on App Mode */
+#app-container[data-mode="drive"] #dashboard-btn { display: flex; }
+#app-container[data-mode="ride"] #sos-btn { display: flex; }
+#app-container[data-mode="explore"] #sos-btn { display: flex; }
+#app-container[data-mode="connect"] #sos-btn, 
+#app-container[data-mode="connect"] #share-trip-btn { display: flex; }
+
+#app-container:not([data-mode="drive"]) #speed-widget,
+#app-container:not([data-mode="drive"]) #compass-widget { display: none; }

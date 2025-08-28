@@ -18,7 +18,7 @@
 </script>
 </head>
 <body>
-    <div id="app-container" data-theme="light" data-mode="driver">
+    <div id="app-container" data-theme="light" data-mode="drive">
         <!-- Map container -->
         <div id="map"></div>
 
@@ -93,35 +93,6 @@
                 <div class="setting-item">
                     <span data-lang-key="ai_voice_response">AI Voice Response</span>
                     <input type="checkbox" id="toggle-voice-response" role="switch" checked>
-                </div>
-            </div>
-            <!-- Super Admin Controls - Hidden by default -->
-            <div id="admin-theme-controls" class="settings-section hidden">
-                <hr>
-                <h3>Admin Theme Controls</h3>
-                <div class="setting-item">
-                    <label for="header-color">Header</label>
-                    <input type="color" id="header-color" data-css-var="--header-bg-color">
-                </div>
-                <div class="setting-item">
-                    <label for="footer-color">Footer</label>
-                    <input type="color" id="footer-color" data-css-var="--footer-bg-color">
-                </div>
-                 <div class="setting-item">
-                    <label for="bg-color">Background</label>
-                    <input type="color" id="bg-color" data-css-var="--bg-color">
-                </div>
-                <div class="setting-item">
-                    <label for="text-color">Text</label>
-                    <input type="color" id="text-color" data-css-var="--text-color">
-                </div>
-                <div class="setting-item">
-                    <label for="primary-color">Primary</label>
-                    <input type="color" id="primary-color" data-css-var="--primary-color">
-                </div>
-                <div class="admin-actions">
-                    <button id="save-theme-btn">Save Theme</button>
-                    <button id="reset-theme-btn">Reset</button>
                 </div>
             </div>
         </aside>
@@ -266,6 +237,69 @@
             </div>
         </div>
 
+        <!-- App Mode Modal -->
+        <div id="app-mode-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h3 data-lang-key="select_mode">Select Mode</h3>
+                <div class="mode-selection">
+                    <button class="mode-select-btn" data-mode="drive">
+                        <span class="material-icons">directions_car</span>
+                        <span data-lang-key="mode_drive">Drive</span>
+                    </button>
+                    <button class="mode-select-btn" data-mode="ride">
+                        <span class="material-icons">person</span>
+                        <span data-lang-key="mode_ride">Ride</span>
+                    </button>
+                    <button class="mode-select-btn" data-mode="explore">
+                        <span class="material-icons">explore</span>
+                        <span data-lang-key="mode_explore">Explore</span>
+                    </button>
+                    <button class="mode-select-btn" data-mode="connect">
+                        <span class="material-icons">group</span>
+                        <span data-lang-key="mode_connect">Connect</span>
+                    </button>
+                </div>
+                <button id="app-mode-modal-close" class="modal-close-btn icon-button" aria-label="Close">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- SOS Modal -->
+        <div id="sos-modal" class="modal-overlay hidden">
+             <div class="modal-content">
+                <h3 data-lang-key="emergency_sos">Emergency SOS</h3>
+                <p data-lang-key="sos_message">Sending your location to emergency contacts...</p>
+                 <button id="sos-modal-close" class="modal-close-btn icon-button" aria-label="Close">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Share Trip Modal -->
+        <div id="share-trip-modal" class="modal-overlay hidden">
+             <div class="modal-content">
+                <h3 data-lang-key="share_trip">Share Trip</h3>
+                <div id="share-trip-content">
+                    <p data-lang-key="share_trip_desc">Share a live link of your journey with friends and family.</p>
+                    <button id="start-sharing-btn" class="primary-btn">
+                        <span class="material-icons">share</span>
+                        <span data-lang-key="start_sharing">Start Sharing</span>
+                    </button>
+                </div>
+                 <div id="stop-sharing-content" class="hidden">
+                    <p data-lang-key="sharing_active">Live location sharing is active.</p>
+                    <button id="stop-sharing-btn" class="danger-btn">
+                         <span class="material-icons">stop_circle</span>
+                        <span data-lang-key="stop_sharing">Stop Sharing</span>
+                    </button>
+                </div>
+                <button id="share-trip-modal-close" class="modal-close-btn icon-button" aria-label="Close">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+        </div>
+
 
         <!-- Bottom Menu / Nav -->
         <nav id="bottom-menu">
@@ -274,12 +308,31 @@
                 <span class="material-icons">menu</span>
                 <span class="label" data-lang-key="menu_settings">Settings</span>
             </button>
+            
+            <!-- Dynamic Mode Button -->
+            <button id="app-mode-btn" class="menu-item" aria-label="Change App Mode">
+                <span class="material-icons">directions_car</span>
+                <span class="label" data-lang-key="mode_drive">Drive</span>
+            </button>
+
             <button id="route-finder-trigger" class="menu-action-button" aria-label="Open Route Finder">
                 <span class="material-icons">directions</span>
             </button>
-            <button id="dashboard-btn" class="menu-action-button" aria-label="Open Driver Dashboard">
+            
+            <!-- Contextual Action Buttons -->
+            <button id="dashboard-btn" class="menu-item" aria-label="Open Driver Dashboard">
                 <span class="material-icons">dashboard</span>
+                <span class="label" data-lang-key="menu_dashboard">Dashboard</span>
             </button>
+            <button id="sos-btn" class="menu-item hidden" aria-label="SOS">
+                <span class="material-icons">sos</span>
+                <span class="label" data-lang-key="menu_sos">SOS</span>
+            </button>
+            <button id="share-trip-btn" class="menu-item hidden" aria-label="Share Trip">
+                <span class="material-icons">share_location</span>
+                <span class="label" data-lang-key="menu_share_trip">Share Trip</span>
+            </button>
+
             <button id="ai-assistant" class="menu-action-button" aria-label="AI Assistant">
                 <span class="material-icons">mic</span>
             </button>
