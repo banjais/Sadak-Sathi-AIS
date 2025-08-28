@@ -213,7 +213,7 @@ const speakText = (text: string) => {
         mai: 'hi-IN'  // Fallback Maithili to Hindi
     };
     utterance.lang = langMap[currentLang] || 'en-US';
-    utterance.rate = 1;
+    utterance.rate = 1.0;
     utterance.pitch = 1;
 
     utterance.onerror = (event) => {
@@ -259,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadData();
         setupEventListeners();
         setupAIChat();
+        simulateGpsStatus();
 
         // Restore saved language or default to 'en'
         const savedLang = localStorage.getItem('appLanguage') || 'en';
@@ -277,10 +278,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const setupMap = () => {
-        map = L.map('map').setView([27.7, 85.3], 13);
+        map = L.map('map', { zoomControl: false }).setView([27.7, 85.3], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
         poisLayer = L.featureGroup().addTo(map);
         incidentsLayer = L.featureGroup().addTo(map);
     };
@@ -304,6 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPois(allPois);
         renderIncidents(allIncidents);
         updateDisplayPanel([...allPois, ...allIncidents]);
+        setupDisplayPanelFilters();
     };
     
     const renderPois = (pois: any[]) => {
@@ -322,9 +326,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const setupDisplayPanelFilters = () => {
+        const filtersContainer = document.getElementById('display-panel-filters')!;
+        filtersContainer.innerHTML = ''; // Clear existing filters
+
+        const allItems = [...allPois, ...allIncidents];
+        const categories = ['All', ...Array.from(new Set(allItems.map(item => item.category)))];
+
+        categories.forEach(category => {
+            const button = document.createElement('button');
+            button.className = 'filter-btn';
+            // Capitalize first letter
+            button.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+            button.dataset.category = category;
+            if (category === 'All') {
+                button.classList.add('active');
+            }
+
+            button.addEventListener('click', () => {
+                // Update active state
+                filtersContainer.querySelector('.filter-btn.active')?.classList.remove('active');
+                button.classList.add('active');
+
+                const filteredItems = category === 'All'
+                    ? allItems
+                    : allItems.filter(item => item.category === category);
+                updateDisplayPanel(filteredItems);
+            });
+            filtersContainer.appendChild(button);
+        });
+    };
+
     const updateDisplayPanel = (items: any[]) => {
         const listEl = document.getElementById('display-panel-list')!;
         listEl.innerHTML = ''; // Clear list
+        if (items.length === 0) {
+            listEl.innerHTML = '<p style="text-align: center; padding: 1rem;">No items found.</p>';
+            return;
+        }
         items.sort((a,b) => a.name.localeCompare(b.name)).forEach(item => {
             const card = document.createElement('div');
             card.className = 'info-card';
@@ -394,6 +433,30 @@ document.addEventListener('DOMContentLoaded', () => {
             window.speechSynthesis.cancel(); // Stop speaking when chat is closed
         });
     };
+    
+    const updateGpsStatus = (status: 'searching' | 'connected' | 'lost') => {
+        const indicator = document.getElementById('gps-status-indicator');
+        if (indicator) {
+            indicator.className = ''; // Reset classes
+            indicator.classList.add(status);
+            indicator.title = `GPS Status: ${status.charAt(0).toUpperCase() + status.slice(1)}`;
+        }
+    };
+
+    const simulateGpsStatus = () => {
+        const states: ('searching' | 'connected' | 'lost')[] = ['searching', 'connected', 'lost'];
+        let currentStateIndex = 0;
+
+        // Initial state
+        updateGpsStatus(states[currentStateIndex]);
+
+        setInterval(() => {
+            currentStateIndex = (currentStateIndex + 1) % states.length;
+            // Make 'connected' state last longer
+            const nextState = states[currentStateIndex];
+            updateGpsStatus(nextState);
+        }, (currentStateIndex === 1 ? 10000 : 4000)); // 10s for connected, 4s for others
+    };
 
     const setupEventListeners = () => {
         // Language switcher
@@ -419,6 +482,21 @@ document.addEventListener('DOMContentLoaded', () => {
             aiChatModal.classList.remove('hidden');
         });
 
+        // Route Finder Panel Toggle
+        const routeFinderTrigger = document.getElementById('route-finder-trigger') as HTMLButtonElement;
+        const routeFinderPanel = document.getElementById('route-finder-panel') as HTMLElement;
+        const routeFinderCloseBtn = document.getElementById('route-finder-close') as HTMLButtonElement;
+
+        if(routeFinderTrigger && routeFinderPanel && routeFinderCloseBtn) {
+            routeFinderTrigger.addEventListener('click', () => {
+                routeFinderPanel.classList.remove('hidden');
+            });
+            routeFinderCloseBtn.addEventListener('click', () => {
+                routeFinderPanel.classList.add('hidden');
+            });
+        }
+
+
         // Voice response toggle
         voiceResponseToggle.addEventListener('change', () => {
             isVoiceResponseEnabled = voiceResponseToggle.checked;
@@ -427,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.speechSynthesis.cancel();
             }
         });
-
+        
         // Display panel toggle
         const displayPanel = document.getElementById('display-panel');
         const displayPanelHeader = document.getElementById('display-panel-header');
@@ -435,6 +513,8 @@ document.addEventListener('DOMContentLoaded', () => {
             displayPanelHeader.addEventListener('click', () => {
                 displayPanel.classList.toggle('collapsed');
             });
+            // Initially set to collapsed
+             displayPanel.classList.add('collapsed');
         }
         
         // Layer toggles

@@ -115,30 +115,41 @@
             </div>
         </aside>
 
-        <!-- Layers Panel (Bottom Right) -->
-        <div id="layers-panel">
-            <h2 data-lang-key="layers">Layers</h2>
-            <div class="layer-toggle">
-                <input type="checkbox" id="toggle-roads" checked>
-                <label for="toggle-roads" data-lang-key="roads">Roads</label>
+        <!-- Map Overlays -->
+        <div id="map-overlays-top-right">
+            <div class="cockpit-item" id="speed-widget">
+                <span class="value">0</span>
+                <span class="label">km/h</span>
             </div>
-            <div class="layer-toggle">
-                <input type="checkbox" id="toggle-pois" checked>
-                <label for="toggle-pois" data-lang-key="pois">Points of Interest</label>
-            </div>
-            <div class="layer-toggle">
-                <input type="checkbox" id="toggle-incidents" checked>
-                <label for="toggle-incidents" data-lang-key="incidents">Incidents</label>
+            <div class="cockpit-item" id="compass-widget">
+                 <div class="compass-rose">N</div>
             </div>
         </div>
-        
+
+        <div id="map-overlays-bottom-right">
+             <div id="layers-panel">
+                <div class="layer-toggle">
+                    <input type="checkbox" id="toggle-roads" checked>
+                    <label for="toggle-roads" data-lang-key="roads">Roads</label>
+                </div>
+                <div class="layer-toggle">
+                    <input type="checkbox" id="toggle-pois" checked>
+                    <label for="toggle-pois" data-lang-key="pois">Points of Interest</label>
+                </div>
+                <div class="layer-toggle">
+                    <input type="checkbox" id="toggle-incidents" checked>
+                    <label for="toggle-incidents" data-lang-key="incidents">Incidents</label>
+                </div>
+            </div>
+        </div>
+
         <!-- Center Location Button -->
         <button id="center-location-btn" class="icon-button" aria-label="Center on my location">
             <span class="material-icons">my_location</span>
         </button>
 
         <!-- Onboard/Display Panel -->
-        <section id="display-panel" class="collapsed">
+        <section id="display-panel">
              <div id="display-panel-header" class="panel-header">
                 <h2 data-lang-key="display_panel_title">Nearby Information</h2>
                 <span class="material-icons panel-toggle-icon">expand_less</span>
@@ -152,12 +163,6 @@
                 </div>
             </div>
         </section>
-
-        <!-- Route Finder Trigger Button -->
-        <button id="route-finder-trigger">
-            <span class="material-icons">directions</span>
-            <span data-lang-key="route_finder">Route Finder</span>
-        </button>
         
         <!-- Route Finder Panel (Modal) -->
         <div id="route-finder-panel" class="hidden">
@@ -220,34 +225,16 @@
         <!-- Bottom Menu / Nav -->
         <nav id="bottom-menu">
             <div class="menu-left">
-                <div id="driver-cockpit">
-                    <div class="cockpit-item" id="speed-widget">
-                        <span class="value">0</span>
-                        <span class="label">km/h</span>
-                    </div>
-                    <div class="cockpit-item" id="compass-widget">
-                         <div class="compass-rose">N</div>
-                    </div>
-                     <div class="cockpit-item" id="temp-widget">
-                        <span class="value">--°</span>
-                        <span class="material-icons">thermostat</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="menu-center">
-                 <button id="hamburger-menu" class="menu-item" aria-label="Open settings">
+                <button id="hamburger-menu" class="menu-item" aria-label="Open settings">
                     <span class="blinking-dot"></span>
                     <span class="material-icons">menu</span>
                     <span class="label" data-lang-key="menu_settings">Settings</span>
                 </button>
-                <button id="passenger-mode-btn" class="menu-item" aria-label="Passenger Mode">
-                    <span class="material-icons">people</span>
-                    <span class="label" data-lang-key="menu_passenger">Passenger</span>
-                </button>
-                <button id="driver-mode-btn" class="menu-item active" aria-label="Driver Mode">
-                    <span class="material-icons">navigation</span>
-                    <span class="label" data-lang-key="menu_driver">Driver</span>
+            </div>
+            
+            <div class="menu-center">
+                 <button id="route-finder-trigger" class="menu-action-button" aria-label="Open Route Finder">
+                    <span class="material-icons">directions</span>
                 </button>
             </div>
 
