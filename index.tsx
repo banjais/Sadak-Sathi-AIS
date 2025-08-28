@@ -193,8 +193,8 @@ const cleanupSpeechState = (isError: boolean = false) => {
     currentUtterance = null; // Clear reference
     
     if (isError) {
-        console.warn("Speech engine error detected. Performing hard reset.");
-        speechQueue.length = 0; // Clear the entire queue to prevent cascade failures.
+        console.warn("Speech engine error detected. Resetting current utterance and continuing queue.");
+        // We DON'T clear the whole queue. We just cancel the current attempt and let the queue processor move to the next item.
         window.speechSynthesis.cancel();
     }
     
@@ -299,7 +299,8 @@ const speakText = (text: string) => {
 
 
 const cancelSpeech = () => {
-    cleanupSpeechState(true);
+    speechQueue.length = 0; // Clear pending items
+    cleanupSpeechState(true); // Force reset of current item
 };
 
 const t = (key: string): string => {
