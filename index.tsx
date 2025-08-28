@@ -228,6 +228,8 @@ let routePreferences = {
     avoidTolls: false,
     preferScenic: false,
 };
+let activeDisplayFilter: string = 'all';
+
 
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
@@ -573,46 +575,108 @@ function addIncidentLayer(incidents: any[]) {
 
 // --- UI Panel Functions ---
 
-function populateDisplayPanel() {
-    const content = document.getElementById('display-panel-content')!;
-    content.innerHTML = '';
-    const allItems = [...pois, ...wazeIncidents];
+function createInfoCard(item: any): HTMLElement {
+    const card = document.createElement('div');
+    card.className = 'info-card';
+    card.dataset.id = String(item.id);
+    
+    let icon, statusClass, typeText, cardType;
 
-    allItems.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'info-card';
-        card.dataset.id = String(item.id);
+    if (item.category === 'incidents') {
+        icon = item.type === 'closure' ? 'block' : 'warning';
+        statusClass = 'incident';
+        typeText = item.status;
+        cardType = 'Incident';
+    } else { // It's a POI
+        icon = item.type === 'bridge' ? 'location_city' : 'place';
+        statusClass = item.status.includes('Good') ? 'good' : 'fair';
+        typeText = item.status;
+        cardType = item.category.charAt(0).toUpperCase() + item.category.slice(1);
+    }
+
+    card.innerHTML = `
+        <h3><span class="material-icons">${icon}</span> ${item.name}</h3>
+        <p>${cardType}</p>
+        <span class="card-status ${statusClass}">${typeText}</span>
+    `;
+    card.addEventListener('click', () => {
+        let targetLayer = item.category === 'incidents' ? incidentLayer : poiLayer;
+        let targetIdKey = item.category === 'incidents' ? 'incidentId' : 'poiId';
         
-        let icon, statusClass, typeText;
-        if (item.type === 'bridge' || item.type === 'poi') {
-            icon = item.type === 'bridge' ? 'location_city' : 'place';
-            statusClass = item.status.includes('Good') ? 'good' : 'fair';
-            typeText = item.status;
-        } else {
-            icon = item.type === 'closure' ? 'block' : 'warning';
-            statusClass = 'incident';
-            typeText = item.status;
-        }
+        targetLayer.eachLayer((layer: any) => {
+            if (layer[targetIdKey] === item.id) {
+                map.flyTo(layer.getLatLng(), 15);
+                layer.openPopup();
+            }
+        });
+    });
+    return card;
+}
 
-        card.innerHTML = `
-            <h3><span class="material-icons">${icon}</span> ${item.name}</h3>
-            <p>${item.type.charAt(0).toUpperCase() + item.type.slice(1)}</p>
-            <span class="card-status ${statusClass}">${typeText}</span>
-        `;
-        card.addEventListener('click', () => {
-            let targetLayer = item.type === 'bridge' || item.type === 'poi' ? poiLayer : incidentLayer;
-            let targetIdKey = item.type === 'bridge' || item.type === 'poi' ? 'poiId' : 'incidentId';
-            
-            targetLayer.eachLayer((layer: any) => {
-                if (layer[targetIdKey] === item.id) {
-                    map.flyTo(layer.getLatLng(), 15);
-                    layer.openPopup();
-                }
+function populateDisplayPanel() {
+    const filtersContainer = document.getElementById('display-panel-filters')!;
+    const listContainer = document.getElementById('display-panel-list')!;
+    filtersContainer.innerHTML = '';
+    listContainer.innerHTML = '';
+
+    // Standardize incidents to have a 'category' property
+    const allItems = [
+        ...pois, 
+        ...wazeIncidents.map(i => ({...i, category: 'incidents'}))
+    ];
+
+    // Create filter buttons
+    const categories = ['All', ...[...new Set(allItems.map(item => item.category))]
+        .map(c => c.charAt(0).toUpperCase() + c.slice(1)) // Capitalize
+        .sort()
+    ];
+    
+    categories.forEach(category => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn';
+        btn.textContent = category;
+        const categoryKey = category.toLowerCase();
+        if (categoryKey === activeDisplayFilter) {
+            btn.classList.add('active');
+        }
+        btn.onclick = () => {
+            activeDisplayFilter = categoryKey;
+            populateDisplayPanel();
+        };
+        filtersContainer.appendChild(btn);
+    });
+
+    // Populate the list based on the active filter
+    if (activeDisplayFilter === 'all') {
+        const groupedItems = allItems.reduce((acc, item) => {
+            const key = item.category;
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(item);
+            return acc;
+        }, {} as { [key: string]: any[] });
+
+        const sortedCategories = Object.keys(groupedItems).sort();
+
+        sortedCategories.forEach(category => {
+            const header = document.createElement('h3');
+            header.className = 'category-header';
+            header.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+            listContainer.appendChild(header);
+
+            groupedItems[category].forEach(item => {
+                const card = createInfoCard(item);
+                listContainer.appendChild(card);
             });
         });
-        content.appendChild(card);
-    });
+    } else {
+        const filteredItems = allItems.filter(item => item.category === activeDisplayFilter);
+        filteredItems.forEach(item => {
+            const card = createInfoCard(item);
+            listContainer.appendChild(card);
+        });
+    }
 }
+
 
 // --- Draggable Element Logic ---
 

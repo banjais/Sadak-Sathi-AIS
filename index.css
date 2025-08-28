@@ -369,6 +369,8 @@ input[type="checkbox"][role="switch"]:checked::before {
     box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
     max-height: 60vh;
     transition: transform 0.4s ease-in-out;
+    display: flex;
+    flex-direction: column;
 }
 #display-panel.collapsed {
     transform: translateY(calc(100% - 130px)); /* Show header + one card */
@@ -383,6 +385,7 @@ input[type="checkbox"][role="switch"]:checked::before {
     padding: 15px 20px;
     cursor: pointer;
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
 .panel-header h2 {
     font-size: 1.1rem;
@@ -393,13 +396,69 @@ input[type="checkbox"][role="switch"]:checked::before {
 }
 
 #display-panel-content {
-    padding: 10px 20px 80px 20px; /* Padding bottom for menu */
+    overflow-y: hidden;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#display-panel-filters {
+    display: flex;
+    gap: 10px;
+    padding: 10px 20px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-color);
+    scrollbar-width: none; /* Firefox */
+}
+#display-panel-filters::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    background-color: var(--border-color);
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    transition: background-color 0.2s;
+}
+.filter-btn:hover {
+    opacity: 0.8;
+}
+.filter-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+#display-panel-list {
+    padding: 0 20px 80px 20px; /* Padding bottom for menu */
     overflow-y: auto;
-    max-height: calc(60vh - 60px); /* Adjust based on header height */
+    flex-grow: 1;
+}
+
+.category-header {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-color);
+    opacity: 0.6;
+    padding: 15px 0 5px 0;
+    margin-top: 10px;
+    position: sticky;
+    top: -1px; /* To hide under the border */
+    background: var(--panel-bg-color);
+}
+.category-header:first-child {
+    margin-top: 0;
 }
 
 .info-card {
-    padding: 15px;
+    padding: 15px 0;
     border-bottom: 1px solid var(--border-color);
     cursor: pointer;
     position: relative;
@@ -425,7 +484,7 @@ input[type="checkbox"][role="switch"]:checked::before {
 .card-status {
     position: absolute;
     top: 15px;
-    right: 15px;
+    right: 0;
     font-size: 0.8rem;
     font-weight: 500;
     padding: 3px 8px;
