@@ -892,8 +892,12 @@ function shareRoute() {
     if (incidentIds) url.searchParams.set('incidents', incidentIds);
     if (trafficOnRoute) url.searchParams.set('traffic', trafficOnRoute);
 
+    let incidentText = '';
+    if (incidentsOnRoute.length > 0) {
+        incidentText = ` Heads up, there ${incidentsOnRoute.length === 1 ? 'is 1 incident' : `are ${incidentsOnRoute.length} incidents`} reported along the way.`;
+    }
 
-    const shareText = `Check out my route on Sadak Sathi from ${currentRouteInfo.from} to ${currentRouteInfo.to}! Traffic is currently ${trafficOnRoute}. Heads up, there ${incidentsOnRoute.length === 1 ? 'is 1 incident' : `are ${incidentsOnRoute.length} incidents`} reported along the way. ${url.toString()}`;
+    const shareText = `Check out my route on Sadak Sathi from ${currentRouteInfo.from} to ${currentRouteInfo.to}! Traffic is currently ${trafficOnRoute}.${incidentText}`;
 
     if (navigator.share) {
         navigator.share({
@@ -902,7 +906,8 @@ function shareRoute() {
             url: url.toString()
         }).catch(console.error);
     } else {
-        navigator.clipboard.writeText(url.toString()).then(() => {
+        const clipboardText = `${shareText} ${url.toString()}`;
+        navigator.clipboard.writeText(clipboardText).then(() => {
             showToast(translations[currentLang].link_copied);
         });
     }
