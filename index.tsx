@@ -106,7 +106,7 @@ const translations = {
         incidents: "Incidents", display_panel_title: "Nearby Information", route_finder: "Route Finder",
         find_route_btn: "Find Optimal Route", clear_route_btn: "Clear Route", share_route: "Share Route",
         ai_chat_title: "AI Assistant", ai_chat_placeholder: "Type a message...", menu_settings: "Settings",
-        menu_passenger: "Passenger", menu_driver: "Driver", ai_voice_response: "AI Voice Response"
+        menu_dashboard: "Dashboard", menu_driver: "Driver", ai_voice_response: "AI Voice Response"
     },
     np: {
         route_preferences: "मार्ग प्राथमिकताहरू", prefer_highways: "राजमार्गहरू प्राथमिकता दिनुहोस्",
@@ -114,7 +114,7 @@ const translations = {
         layers: "तहहरू", roads: "सडकहरू", pois: "चासोका ठाउँहरू", incidents: "घटनाहरू",
         display_panel_title: "नजिकैको जानकारी", route_finder: "मार्ग खोजकर्ता", find_route_btn: "उत्तम मार्ग खोज्नुहोस्",
         clear_route_btn: "मार्ग हटाउनुहोस्", share_route: "मार्ग साझा गर्नुहोस्", ai_chat_title: "एआई सहायक",
-        ai_chat_placeholder: "सन्देश टाइप गर्नुहोस्...", menu_settings: "सेटिङहरू", menu_passenger: "यात्रु",
+        ai_chat_placeholder: "सन्देश टाइप गर्नुहोस्...", menu_settings: "सेटिङहरू", menu_dashboard: "ड्यासबोर्ड",
         menu_driver: "चालक", ai_voice_response: "एआई आवाज प्रतिक्रिया"
     },
     hi: {
@@ -122,7 +122,7 @@ const translations = {
         prefer_scenic_route: "दर्शनीय मार्ग को प्राथमिकता दें", layers: "परतें", roads: "सड़कें", pois: "रुचि के बिंदु",
         incidents: "घटनाएं", display_panel_title: "आस-पास की जानकारी", route_finder: "मार्ग खोजक", find_route_btn: "इष्टतम मार्ग खोजें",
         clear_route_btn: "मार्ग साफ़ करें", share_route: "मार्ग साझा करें", ai_chat_title: "एआई सहायक",
-        ai_chat_placeholder: "एक संदेश टाइप करें...", menu_settings: "सेटिंग्स", menu_passenger: "यात्री",
+        ai_chat_placeholder: "एक संदेश टाइप करें...", menu_settings: "सेटिंग्स", menu_dashboard: "डैशबोर्ड",
         menu_driver: "चालक", ai_voice_response: "एआई वॉयस रिस्पांस"
     },
     es: {
@@ -131,7 +131,7 @@ const translations = {
         incidents: "Incidentes", display_panel_title: "Información cercana", route_finder: "Buscador de rutas",
         find_route_btn: "Encontrar ruta óptima", clear_route_btn: "Borrar ruta", share_route: "Compartir ruta",
         ai_chat_title: "Asistente de IA", ai_chat_placeholder: "Escribe un mensaje...", menu_settings: "Ajustes",
-        menu_passenger: "Pasajero", menu_driver: "Conductor", ai_voice_response: "Respuesta de voz de IA"
+        menu_dashboard: "Tablero", menu_driver: "Conductor", ai_voice_response: "Respuesta de voz de IA"
     },
     fr: {
         route_preferences: "Préférences d'itinéraire", prefer_highways: "Préférer les autoroutes", avoid_tolls: "Éviter les péages",
@@ -139,7 +139,7 @@ const translations = {
         incidents: "Incidents", display_panel_title: "Informations à proximité", route_finder: "Chercheur d'itinéraire",
         find_route_btn: "Trouver l'itinéraire optimal", clear_route_btn: "Effacer l'itinéraire", share_route: "Partager l'itinéraire",
         ai_chat_title: "Assistant IA", ai_chat_placeholder: "Écrivez un message...", menu_settings: "Paramètres",
-        menu_passenger: "Passager", menu_driver: "Conducteur", ai_voice_response: "Réponse vocale de l'IA"
+        menu_dashboard: "Tableau de bord", menu_driver: "Conducteur", ai_voice_response: "Réponse vocale de l'IA"
     },
     de: {
         route_preferences: "Routenpräferenzen", prefer_highways: "Autobahnen bevorzugen", avoid_tolls: "Maut vermeiden",
@@ -147,13 +147,13 @@ const translations = {
         incidents: "Vorfälle", display_panel_title: "Informationen in der Nähe", route_finder: "Routenfinder",
         find_route_btn: "Optimale Route finden", clear_route_btn: "Route löschen", share_route: "Route teilen",
         ai_chat_title: "KI-Assistent", ai_chat_placeholder: "Nachricht eingeben...", menu_settings: "Einstellungen",
-        menu_passenger: "Passagier", menu_driver: "Fahrer", ai_voice_response: "KI-Sprachantwort"
+        menu_dashboard: "Armaturenbrett", menu_driver: "Fahrer", ai_voice_response: "KI-Sprachantwort"
     },
     zh: {
         route_preferences: "路线偏好", prefer_highways: "偏好高速公路", avoid_tolls: "避开收费站", prefer_scenic_route: "偏好风景路线",
         layers: "图层", roads: "道路", pois: "兴趣点", incidents: "事件", display_panel_title: "附近信息",
         route_finder: "路线查找器", find_route_btn: "查找最佳路线", clear_route_btn: "清除路线", share_route: "分享路线",
-        ai_chat_title: "AI 助手", ai_chat_placeholder: "输入消息...", menu_settings: "设置", menu_passenger: "乘客",
+        ai_chat_title: "AI 助手", ai_chat_placeholder: "输入消息...", menu_settings: "设置", menu_dashboard: "仪表板",
         menu_driver: "司机", ai_voice_response: "AI语音回应"
     },
     ja: {
@@ -162,14 +162,14 @@ const translations = {
         incidents: "インシデント", display_panel_title: "周辺情報", route_finder: "ルートファインダー",
         find_route_btn: "最適なルートを検索", clear_route_btn: "ルートをクリア", share_route: "ルートを共有",
         ai_chat_title: "AIアシスタント", ai_chat_placeholder: "メッセージを入力...", menu_settings: "設定",
-        menu_passenger: "乗客", menu_driver: "ドライバー", ai_voice_response: "AI音声応答"
+        menu_dashboard: "ダッシュボード", menu_driver: "ドライバー", ai_voice_response: "AI音声応答"
     },
     ko: {
         route_preferences: "경로 기본 설정", prefer_highways: "고속도로 선호", avoid_tolls: "유료 도로 피하기",
         prefer_scenic_route: "경치 좋은 길 선호", layers: "레이어", roads: "도로", pois: "관심 지점",
         incidents: "사건", display_panel_title: "주변 정보", route_finder: "경로 찾기", find_route_btn: "최적 경로 찾기",
         clear_route_btn: "경로 지우기", share_route: "경로 공유", ai_chat_title: "AI 어시스턴트",
-        ai_chat_placeholder: "메시지를 입력하세요...", menu_settings: "설정", menu_passenger: "승객", menu_driver: "운전자",
+        ai_chat_placeholder: "메시지를 입력하세요...", menu_settings: "설정", menu_dashboard: "대시보드", menu_driver: "운전자",
         ai_voice_response: "AI 음성 응답"
     },
     new: { // Newari
@@ -177,7 +177,7 @@ const translations = {
         prefer_scenic_route: "रमणीय मार्गयात प्राथमिकता ब्यु", layers: "तह", roads: "सड़क", pois: "चासोया थाय्",
         incidents: "घटना", display_panel_title: "नापजाःगु जानकारी", route_finder: "मार्ग मालेगु", find_route_btn: "उत्तम मार्ग मालेगु",
         clear_route_btn: "मार्ग पुसेछ्व", share_route: "मार्ग सेयर यायेगु", ai_chat_title: "एआई सहायक",
-        ai_chat_placeholder: "सन्देश च्वयेु...", menu_settings: "सेटिङ", menu_passenger: "यात्रु", menu_driver: "चालक",
+        ai_chat_placeholder: "सन्देश च्वयेु...", menu_settings: "सेटिङ", menu_dashboard: "ड्यासबोर्ड", menu_driver: "चालक",
         ai_voice_response: "एआई भ्वाइस रेस्पोन्स"
     },
     mai: { // Maithili
@@ -185,7 +185,7 @@ const translations = {
         prefer_scenic_route: "रमणीय मार्गक प्राथमिकता दियौ", layers: "परत", roads: "सड़क", pois: "रुचिक स्थान",
         incidents: "घटना", display_panel_title: "आसपासक जानकारी", route_finder: "मार्ग खोजक", find_route_btn: "उत्तम मार्ग खोजू",
         clear_route_btn: "मार्ग साफ करू", share_route: "मार्ग साझा करू", ai_chat_title: "एआई सहायक",
-        ai_chat_placeholder: "संदेश टाइप करू...", menu_settings: "सेटिंग्स", menu_passenger: "यात्री", menu_driver: "चालक",
+        ai_chat_placeholder: "संदेश टाइप करू...", menu_settings: "सेटिंग्स", menu_dashboard: "डैशबोर्ड", menu_driver: "चालक",
         ai_voice_response: "एआई आवाज प्रतिक्रिया"
     }
 };
@@ -262,6 +262,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setupCockpitWidgets();
         simulateWeather();
         simulateUserLocation();
+        simulateDriverEmotion();
+        simulateVehicleOBD();
 
         // Restore saved language or default to 'en'
         const savedLang = localStorage.getItem('appLanguage') || 'en';
@@ -405,31 +407,30 @@ document.addEventListener('DOMContentLoaded', () => {
             listEl.appendChild(card);
         });
     };
+    
+    const addMessageToChat = (message: string, sender: 'user' | 'ai') => {
+        const chatMessagesContainer = document.getElementById('chat-messages') as HTMLElement;
+        const messageEl = document.createElement('div');
+        messageEl.classList.add('message', sender === 'ai' ? 'ai-message' : 'user-message');
+        // A simple way to render potential markdown from the AI for better readability
+        const processedMessage = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+        messageEl.innerHTML = `<p>${processedMessage}</p>`;
+        chatMessagesContainer.appendChild(messageEl);
+        chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+
+        if (sender === 'ai') {
+             // Don't speak intermediate messages like "Searching..."
+            if (!message.startsWith("Searching for")) {
+                speakText(message);
+            }
+        }
+    };
 
     const setupAIChat = () => {
         const chatForm = document.getElementById('chat-form') as HTMLFormElement;
         const chatInput = document.getElementById('chat-input') as HTMLInputElement;
-        const chatMessagesContainer = document.getElementById('chat-messages') as HTMLElement;
         const typingIndicator = document.getElementById('typing-indicator') as HTMLElement;
         const aiChatCloseBtn = document.getElementById('ai-chat-close') as HTMLButtonElement;
-
-
-        const addMessageToChat = (message: string, sender: 'user' | 'ai') => {
-            const messageEl = document.createElement('div');
-            messageEl.classList.add('message', sender === 'ai' ? 'ai-message' : 'user-message');
-            // A simple way to render potential markdown from the AI for better readability
-            const processedMessage = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-            messageEl.innerHTML = `<p>${processedMessage}</p>`;
-            chatMessagesContainer.appendChild(messageEl);
-            chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
-
-            if (sender === 'ai') {
-                 // Don't speak intermediate messages like "Searching..."
-                if (!message.startsWith("Searching for")) {
-                    speakText(message);
-                }
-            }
-        };
         
         // 1. Define the tool schema for the AI
         const tools: Tool[] = [
@@ -493,8 +494,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         model: 'gemini-2.5-flash',
                         config: {
                             tools: tools, // Pass tool schema to the chat model
-                            // Update system instructions to inform the AI about its new tool
-                            systemInstruction: "You are a helpful and friendly road assistant for Nepal called Sadak Sathi. Provide concise and relevant information about roads, points of interest, and driving conditions. When asked about specific locations, use the googleSearch tool to find up-to-date information from the available data. Be helpful and brief."
+                            // Update system instructions to inform the AI about its new role as a proactive co-pilot
+                            systemInstruction: "You are a helpful and proactive road assistant for Nepal called Sadak Sathi. You are a co-pilot. Your primary role is to provide concise and relevant information about roads, points of interest, and driving conditions. When asked about specific locations, use the googleSearch tool to find up-to-date information. IMPORTANT: You will also receive automated system alerts about driver status and vehicle health. When these alerts come in, your next response to the user should directly address the alert and offer help (e.g., suggest a break, or offer to find a petrol station or repair shop)."
                         }
                     });
                 }
@@ -524,7 +525,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const result = toolFunction(args);
                     
                     // Send the tool's result back to the model
-                    // Fix: The 'parts' array must be wrapped in a 'contents' object when sending a tool response.
                     response = await activeChat.sendMessage({
                         contents: {
                             parts: [
@@ -556,6 +556,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     
+    /**
+     * Proactively sends an alert to the user via the AI chat.
+     * @param {string} message The alert message.
+     */
+    const triggerAIAlert = async (message: string) => {
+        // Open the chat if it's closed to show the alert
+        const aiChatModal = document.getElementById('ai-chat-modal') as HTMLElement;
+        if (aiChatModal.classList.contains('hidden')) {
+            aiChatModal.classList.remove('hidden');
+        }
+        
+        addMessageToChat(message, 'ai');
+        
+        // Also send the alert to the AI model's history so it has context
+        if (activeChat) {
+            try {
+                // We send a combined message to the model for context.
+                // The model's response will be what it says to the user next.
+                const systemMessageForAI = `System Alert Triggered: ${message}. How should I respond to the user about this?`;
+                const response = await activeChat.sendMessage({ message: systemMessageForAI });
+                addMessageToChat(response.text, 'ai');
+            } catch (error) {
+                console.error("Error sending system alert to AI:", error);
+            }
+        }
+    };
+
     const updateGpsStatus = (status: 'searching' | 'connected' | 'lost') => {
         const indicator = document.getElementById('gps-status-indicator');
         if (indicator) {
@@ -686,6 +713,98 @@ document.addEventListener('DOMContentLoaded', () => {
             locationCoordsEl.textContent = newLocation.coords;
         }, 12000); // Change every 12 seconds
     };
+    
+    const simulateDriverEmotion = () => {
+        const statusIconEl = document.getElementById('driver-status-icon');
+        const statusTextEl = document.getElementById('driver-status-text');
+        if (!statusIconEl || !statusTextEl) return;
+
+        const states = [
+            { status: 'Calm', icon: 'sentiment_very_satisfied', duration: 20000, alert: null },
+            { status: 'Tired', icon: 'sentiment_dissatisfied', duration: 10000, alert: "System Alert: Driver appears tired. It might be a good time to take a short break." },
+            { status: 'Calm', icon: 'sentiment_very_satisfied', duration: 20000, alert: null },
+            { status: 'Stressed', icon: 'sentiment_very_dissatisfied', duration: 10000, alert: "System Alert: Driver appears stressed. Consider pulling over for a moment." }
+        ];
+        let currentStateIndex = 0;
+        let alertSentForState = false;
+
+        const cycleState = () => {
+            const currentState = states[currentStateIndex];
+            
+            statusIconEl.textContent = currentState.icon;
+            statusTextEl.textContent = currentState.status;
+            statusTextEl.className = `status-text ${currentState.status.toLowerCase()}`;
+            
+            if(currentState.alert && !alertSentForState) {
+                triggerAIAlert(currentState.alert);
+                alertSentForState = true;
+            }
+
+            currentStateIndex = (currentStateIndex + 1) % states.length;
+            // Reset alert flag when moving to a new state
+            if(currentStateIndex !== (currentStateIndex - 1 + states.length) % states.length) {
+                alertSentForState = false;
+            }
+
+            setTimeout(cycleState, currentState.duration);
+        };
+        cycleState();
+    };
+
+    const simulateVehicleOBD = () => {
+        let fuel = 85, temp = 90, pressure = 32;
+        let isLowFuelAlertSent = false, isLowPressureAlertSent = false;
+        
+        const fuelValueEl = document.getElementById('fuel-value');
+        const fuelBarEl = document.getElementById('fuel-bar');
+        const tempValueEl = document.getElementById('temp-value');
+        const tempBarEl = document.getElementById('temp-bar');
+        const pressureValueEl = document.getElementById('pressure-value');
+        const pressureBarEl = document.getElementById('pressure-bar');
+        
+        if(!fuelValueEl || !fuelBarEl || !tempValueEl || !tempBarEl || !pressureValueEl || !pressureBarEl) return;
+
+        setInterval(() => {
+            // Simulate data change
+            fuel -= Math.random() * 0.5;
+            temp += (Math.random() - 0.5) * 2;
+            pressure -= Math.random() * 0.1;
+            
+            fuel = Math.max(0, fuel);
+            temp = Math.max(70, Math.min(120, temp));
+            pressure = Math.max(20, pressure);
+
+            // Update UI
+            fuelValueEl.textContent = `${Math.round(fuel)}%`;
+            fuelBarEl.style.width = `${fuel}%`;
+            tempValueEl.textContent = `${Math.round(temp)}°C`;
+            tempBarEl.style.width = `${((temp - 70) / 50) * 100}%`; // Normalize temp range
+            pressureValueEl.textContent = `${Math.round(pressure)} PSI`;
+            pressureBarEl.style.width = `${((pressure - 20) / 15) * 100}%`; // Normalize pressure range
+
+            // Update bar colors based on value
+            fuelBarEl.className = fuel > 20 ? 'bar-good' : fuel > 10 ? 'bar-warn' : 'bar-danger';
+            tempBarEl.className = temp < 105 ? 'bar-good' : temp < 115 ? 'bar-warn' : 'bar-danger';
+            pressureBarEl.className = pressure > 28 ? 'bar-good' : pressure > 25 ? 'bar-warn' : 'bar-danger';
+            
+            // Trigger AI Alerts
+            if (fuel < 15 && !isLowFuelAlertSent) {
+                triggerAIAlert("System Alert: Fuel level is critically low. I can search for nearby petrol stations.");
+                isLowFuelAlertSent = true;
+            } else if (fuel > 20) {
+                isLowFuelAlertSent = false; // Reset alert when refueled
+            }
+
+            if (pressure < 26 && !isLowPressureAlertSent) {
+                triggerAIAlert("System Alert: Tire pressure is low. I can find the nearest repair shop for you.");
+                isLowPressureAlertSent = true;
+            } else if (pressure > 28) {
+                isLowPressureAlertSent = false; // Reset alert when inflated
+            }
+
+        }, 3000);
+    };
+
 
     const setupEventListeners = () => {
         // Language switcher
@@ -746,6 +865,15 @@ document.addEventListener('DOMContentLoaded', () => {
              displayPanel.classList.add('collapsed');
         }
         
+        // Driver Dashboard Toggle
+        const dashboardBtn = document.getElementById('dashboard-btn') as HTMLButtonElement;
+        const driverDashboard = document.getElementById('driver-dashboard') as HTMLElement;
+        if(dashboardBtn && driverDashboard) {
+            dashboardBtn.addEventListener('click', () => {
+                driverDashboard.classList.toggle('open');
+            });
+        }
+
         // Layer toggles
         (document.getElementById('toggle-roads') as HTMLInputElement).addEventListener('change', (e) => {
             if ((e.target as HTMLInputElement).checked) map.addLayer(roadsLayer);

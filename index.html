@@ -175,6 +175,40 @@
             </div>
         </section>
         
+        <!-- Driver Dashboard -->
+        <aside id="driver-dashboard">
+            <div id="driver-status-widget" class="dashboard-widget">
+                <div class="widget-header">
+                    <span class="material-icons">sentiment_satisfied</span>
+                    <span>Driver Status</span>
+                </div>
+                <div id="driver-status">
+                    <span class="material-icons" id="driver-status-icon">sentiment_very_satisfied</span>
+                    <h3 id="driver-status-text">Calm</h3>
+                </div>
+            </div>
+            <div id="vehicle-health-widget" class="dashboard-widget">
+                <div class="widget-header">
+                     <span class="material-icons">directions_car</span>
+                    <span>Vehicle Health</span>
+                </div>
+                <div class="vehicle-vitals">
+                    <div class="vehicle-vital">
+                        <div class="vital-label"><span>Fuel Level</span><span id="fuel-value">85%</span></div>
+                        <div class="progress-bar-container"><div id="fuel-bar" class="progress-bar bar-good"></div></div>
+                    </div>
+                    <div class="vehicle-vital">
+                        <div class="vital-label"><span>Engine Temp</span><span id="temp-value">90°C</span></div>
+                        <div class="progress-bar-container"><div id="temp-bar" class="progress-bar bar-good"></div></div>
+                    </div>
+                    <div class="vehicle-vital">
+                        <div class="vital-label"><span>Tire Pressure</span><span id="pressure-value">32 PSI</span></div>
+                        <div class="progress-bar-container"><div id="pressure-bar" class="progress-bar bar-good"></div></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
         <!-- Route Finder Panel (Modal) -->
         <div id="route-finder-panel" class="hidden">
             <div class="panel-content">
@@ -243,8 +277,8 @@
             <button id="route-finder-trigger" class="menu-action-button" aria-label="Open Route Finder">
                 <span class="material-icons">directions</span>
             </button>
-            <button id="report-incident-btn" class="menu-action-button" aria-label="Report Incident">
-                <span class="material-icons">report_problem</span>
+            <button id="dashboard-btn" class="menu-action-button" aria-label="Open Driver Dashboard">
+                <span class="material-icons">dashboard</span>
             </button>
             <button id="ai-assistant" class="menu-action-button" aria-label="AI Assistant">
                 <span class="material-icons">mic</span>
