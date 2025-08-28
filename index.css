@@ -300,6 +300,9 @@ html, body {
 }
 .menu-item.active, .menu-item:hover { color: var(--primary-color); }
 #app-mode-btn { color: var(--primary-color); font-weight: 500;}
+#app-mode-btn .label {
+    font-weight: 500;
+}
 
 #hamburger-menu { position: relative; }
 .blinking-dot {

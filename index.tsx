@@ -152,6 +152,8 @@ let availableVoices: SpeechSynthesisVoice[] = [];
 let speechQueue: string[] = [];
 let isSpeechEngineBusy = false;
 let speechWatchdog: number | null = null; // Self-healing timer
+// FIX: Maintain a reference to the current utterance to prevent premature garbage collection.
+let currentUtterance: SpeechSynthesisUtterance | null = null;
 
 const voicesReadyPromise = new Promise<void>(resolve => {
     const checkVoices = () => {
@@ -176,8 +178,36 @@ const voicesReadyPromise = new Promise<void>(resolve => {
     }
 });
 
+const cleanupSpeechState = (isError: boolean = false) => {
+    // FIX: Immediately nullify handlers to prevent re-entrant calls from cancel().
+    if (currentUtterance) {
+        currentUtterance.onend = null;
+        currentUtterance.onerror = null;
+    }
+
+    if (speechWatchdog) {
+        clearTimeout(speechWatchdog);
+        speechWatchdog = null;
+    }
+    
+    currentUtterance = null; // Clear reference
+    
+    if (isError) {
+        window.speechSynthesis.cancel();
+    }
+    
+    isSpeechEngineBusy = false;
+    // Schedule the next attempt after a delay. Give more recovery time for errors.
+    setTimeout(processSpeechQueue, isError ? 750 : 100);
+};
+
 const processSpeechQueue = async () => {
     if (isSpeechEngineBusy || speechQueue.length === 0) return;
+
+    if (window.speechSynthesis.speaking) {
+        setTimeout(processSpeechQueue, 250); 
+        return;
+    }
 
     isSpeechEngineBusy = true;
     const text = speechQueue.shift();
@@ -190,6 +220,7 @@ const processSpeechQueue = async () => {
     try {
         await voicesReadyPromise;
         const utterance = new SpeechSynthesisUtterance(text);
+        currentUtterance = utterance; // Set reference
         
         const langMap: { [key: string]: string } = {
             en: 'en-US', np: 'ne-NP', hi: 'hi-IN', es: 'es-ES', fr: 'fr-FR',
@@ -210,22 +241,7 @@ const processSpeechQueue = async () => {
         utterance.rate = 1.0;
         utterance.pitch = 1;
 
-        const cleanupAndProceed = () => {
-            if (speechWatchdog) {
-                clearTimeout(speechWatchdog);
-                speechWatchdog = null;
-            }
-            isSpeechEngineBusy = false;
-            setTimeout(processSpeechQueue, 500); // Increased delay for stability after error
-        };
-
-        utterance.onend = () => {
-             if (speechWatchdog) clearTimeout(speechWatchdog);
-             speechWatchdog = null;
-             isSpeechEngineBusy = false;
-             setTimeout(processSpeechQueue, 100);
-        };
-
+        utterance.onend = () => cleanupSpeechState(false);
         utterance.onerror = (event) => {
             console.error('SpeechSynthesisUtterance.onerror:', {
                 error: (event as any).error,
@@ -233,64 +249,37 @@ const processSpeechQueue = async () => {
                 langRequested: targetLang,
                 voiceFound: voice ? `${voice.name} (${voice.lang})` : 'none',
             });
-            cleanupAndProceed();
+            cleanupSpeechState(true);
         };
         
         speechWatchdog = window.setTimeout(() => {
             console.warn("Speech synthesis watchdog triggered. Engine may have hung. Forcing reset.");
-            window.speechSynthesis.cancel();
-            cleanupAndProceed();
+            cleanupSpeechState(true);
         }, 15000);
-
-        if (window.speechSynthesis.speaking) {
-            window.speechSynthesis.cancel();
-        }
         
+        window.speechSynthesis.resume();
         setTimeout(() => window.speechSynthesis.speak(utterance), 100);
 
     } catch (e) {
         console.error("Error in speech processing pipeline:", e);
-        if (speechWatchdog) clearTimeout(speechWatchdog);
-        isSpeechEngineBusy = false;
-        setTimeout(processSpeechQueue, 100);
+        cleanupSpeechState(true);
     }
 };
 
-/**
- * Splits text into smaller chunks for the speech synthesis engine,
- * which can be unstable with long strings. Tries to split at sentence
- * endings or spaces to sound more natural.
- */
 const splitTextIntoChunks = (text: string, chunkSize = 150): string[] => {
-    if (text.length <= chunkSize) {
-        return [text];
-    }
+    if (text.length <= chunkSize) { return [text]; }
     const chunks: string[] = [];
     let remainingText = text;
-
     while (remainingText.length > 0) {
-        if (remainingText.length <= chunkSize) {
-            chunks.push(remainingText);
-            break;
-        }
-        // Find the last sentence-ending punctuation or space within the chunk size
+        if (remainingText.length <= chunkSize) { chunks.push(remainingText); break; }
         let splitPos = -1;
         const punctuation = ['.', '?', '!', ';'];
         for (const p of punctuation) {
             const pos = remainingText.lastIndexOf(p, chunkSize);
-            if (pos > splitPos) {
-                splitPos = pos;
-            }
+            if (pos > splitPos) { splitPos = pos; }
         }
-        // If no punctuation, find the last space
-        if (splitPos === -1) {
-            splitPos = remainingText.lastIndexOf(' ', chunkSize);
-        }
-        // If no space is found, split at the chunk size (hard break)
-        if (splitPos === -1) {
-            splitPos = chunkSize -1;
-        }
-        
+        if (splitPos === -1) { splitPos = remainingText.lastIndexOf(' ', chunkSize); }
+        if (splitPos === -1) { splitPos = chunkSize -1; }
         chunks.push(remainingText.substring(0, splitPos + 1));
         remainingText = remainingText.substring(splitPos + 1).trim();
     }
@@ -300,27 +289,16 @@ const splitTextIntoChunks = (text: string, chunkSize = 150): string[] => {
 
 const speakText = (text: string) => {
     if (!isVoiceResponseEnabled || !('speechSynthesis' in window) || !text) return;
-    
-    // Sanitize and chunk the text to prevent engine errors
-    const sanitizedText = text.replace(/[*_`]/g, ''); // Remove some markdown
+    const sanitizedText = text.replace(/[*_`]/g, '');
     const chunks = splitTextIntoChunks(sanitizedText);
-    
     chunks.forEach(chunk => speechQueue.push(chunk));
-    
     processSpeechQueue();
 };
 
 
 const cancelSpeech = () => {
-    if (speechWatchdog) {
-        clearTimeout(speechWatchdog);
-        speechWatchdog = null;
-    }
     speechQueue.length = 0;
-    isSpeechEngineBusy = false;
-    if (window.speechSynthesis && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-    }
+    cleanupSpeechState(true);
 };
 
 const t = (key: string): string => {
@@ -460,7 +438,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 while (true) {
                     const functionCall = response.candidates?.[0]?.content?.parts[0]?.functionCall;
                     if (!functionCall) break;
-                    // Fix: Cast functionCall.args to the expected type to resolve TypeScript error.
                     const args = functionCall.args as { searchQuery: string };
                     addMessageToChat(`Searching for '${args.searchQuery}'...`, 'ai');
                     const result = googleSearch(args);
@@ -645,6 +622,25 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('appLanguage', lang);
         });
 
+        // FIX: Implement the dark mode theme toggle functionality.
+        const themeToggle = document.getElementById('theme-toggle')!;
+        const appContainer = document.getElementById('app-container')!;
+        const themeIcon = themeToggle.querySelector('.material-icons')!;
+
+        const applyTheme = (theme: string) => {
+            appContainer.dataset.theme = theme;
+            themeIcon.textContent = theme === 'dark' ? 'dark_mode' : 'light_mode';
+            localStorage.setItem('appTheme', theme);
+        };
+
+        const currentTheme = localStorage.getItem('appTheme') || 'light';
+        applyTheme(currentTheme);
+
+        themeToggle.addEventListener('click', () => {
+            const newTheme = appContainer.dataset.theme === 'light' ? 'dark' : 'light';
+            applyTheme(newTheme);
+        });
+
         const settingsPanel = document.getElementById('settings-panel')!;
         const hamburgerMenu = document.getElementById('hamburger-menu')!;
         hamburgerMenu.addEventListener('click', () => {
@@ -682,9 +678,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('dashboard-btn')?.addEventListener('click', () => document.getElementById('driver-dashboard')?.classList.toggle('open'));
 
-        (document.getElementById('toggle-roads') as HTMLInputElement).addEventListener('change', (e) => map.getPane('overlayPane')?.contains(roadsLayer) ? map.removeLayer(roadsLayer) : map.addLayer(roadsLayer));
-        (document.getElementById('toggle-pois') as HTMLInputElement).addEventListener('change', (e) => map.hasLayer(poisLayer) ? map.removeLayer(poisLayer) : map.addLayer(poisLayer));
-        (document.getElementById('toggle-incidents') as HTMLInputElement).addEventListener('change', (e) => map.hasLayer(incidentsLayer) ? map.removeLayer(incidentsLayer) : map.addLayer(incidentsLayer));
+        // FIX: Add guards to layer toggles to prevent race conditions.
+        (document.getElementById('toggle-roads') as HTMLInputElement).addEventListener('change', (e) => {
+            if (roadsLayer) {
+                map.hasLayer(roadsLayer) ? map.removeLayer(roadsLayer) : map.addLayer(roadsLayer);
+            }
+        });
+        (document.getElementById('toggle-pois') as HTMLInputElement).addEventListener('change', (e) => {
+            if (poisLayer) {
+                map.hasLayer(poisLayer) ? map.removeLayer(poisLayer) : map.addLayer(poisLayer);
+            }
+        });
+        (document.getElementById('toggle-incidents') as HTMLInputElement).addEventListener('change', (e) => {
+            if (incidentsLayer) {
+                map.hasLayer(incidentsLayer) ? map.removeLayer(incidentsLayer) : map.addLayer(incidentsLayer);
+            }
+        });
 
         // New Mode Switching Event Listeners
         const appModeModal = document.getElementById('app-mode-modal')!;
