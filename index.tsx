@@ -930,7 +930,7 @@ const tools: Tool[] = [
         functionDeclarations: [
             {
                 name: "add_incident",
-                description: "Adds a new incident report to the map at the user's current location or a specified location.",
+                description: "Use this function to report a traffic incident, road closure, accident, or other hazard at the user's current location. Example phrases: 'Report traffic ahead', 'There is a crash here', 'Road is blocked'.",
                 parameters: {
                     type: Type.OBJECT,
                     properties: {
@@ -948,7 +948,7 @@ const tools: Tool[] = [
             },
             {
                 name: "start_navigation",
-                description: "Starts navigation by finding and displaying the optimal route from the user's current location to a specified destination.",
+                description: "Starts navigation from the user's current location to a specified destination. The destination must be a known Point of Interest (POI). Example phrases: 'Navigate to Main Street', 'Get directions to City Hospital', 'Take me to the airport'.",
                 parameters: {
                     type: Type.OBJECT,
                     properties: {
@@ -1043,6 +1043,7 @@ async function handleChatMessage(userMessageOverride?: string) {
                     addIncidentLayer(wazeIncidents);
                     populateDisplayPanel();
                     functionResponse = `OK, I've reported "${description}" at your current location.`;
+                    showToast(`Reported: ${description}`);
                 }
             } else if (name === 'start_navigation') {
                 // Fix: Cast `args.destination_name` from `unknown` to `string` before calling `.toLowerCase()`.
