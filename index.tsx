@@ -837,7 +837,7 @@ function initGeolocation() {
              lowAccuracyWatchId = navigator.geolocation.watchPosition(onLocationFound, onLocationError, {
                 enableHighAccuracy: false,
                 timeout: 20000,
-                maximumAge: 0
+                maximumAge: 5000
             });
         }
     };
@@ -846,7 +846,7 @@ function initGeolocation() {
     highAccuracyWatchId = navigator.geolocation.watchPosition(onLocationFound, onHighAccuracyError, {
         enableHighAccuracy: true,
         timeout: 30000,
-        maximumAge: 0
+        maximumAge: 5000
     });
 }
 
