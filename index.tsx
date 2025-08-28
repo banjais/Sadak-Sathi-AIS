@@ -95,6 +95,7 @@ let allPois: any[] = [];
 let allIncidents: any[] = [];
 let isVoiceResponseEnabled = true; // State for AI voice response feature
 let activeChat: any = null; // To hold the AI chat session
+let availableVoices: SpeechSynthesisVoice[] = []; // To store available speech voices
 
 // =================================================================================
 // Internationalization (i18n)
@@ -191,7 +192,19 @@ const translations = {
 };
 
 /**
+ * Loads the available speech synthesis voices from the browser.
+ * This can be asynchronous, so it's also tied to the onvoiceschanged event.
+ */
+const loadSpeechVoices = () => {
+    availableVoices = window.speechSynthesis.getVoices();
+    if(availableVoices.length > 0) {
+        console.log(`${availableVoices.length} speech synthesis voices loaded.`);
+    }
+};
+
+/**
  * Uses the Web Speech API to speak the given text, if enabled.
+ * This version is more robust, checking for available voices to prevent errors.
  * @param {string} text The text to speak.
  */
 const speakText = (text: string) => {
@@ -204,20 +217,38 @@ const speakText = (text: string) => {
 
     const utterance = new SpeechSynthesisUtterance(text);
 
-    // Map app language codes to BCP 47 language tags for speech synthesis.
-    // Note: Support is highly dependent on the user's OS and browser TTS engine.
     const langMap: { [key: string]: string } = {
         en: 'en-US', np: 'ne-NP', hi: 'hi-IN', es: 'es-ES', fr: 'fr-FR',
         de: 'de-DE', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR',
         new: 'ne-NP', // Fallback Newari to Nepali
         mai: 'hi-IN'  // Fallback Maithili to Hindi
     };
-    utterance.lang = langMap[currentLang] || 'en-US';
+    const targetLang = langMap[currentLang] || 'en-US';
+
+    // Find the best available voice for the target language.
+    const voice = availableVoices.find(v => v.lang === targetLang) ||
+                  availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+
+    if (voice) {
+        utterance.voice = voice;
+    } else {
+        // This is the crucial fallback. If no specific voice is found, we don't
+        // set utterance.voice or utterance.lang. This lets the browser use its
+        // default voice and PREVENTS the error.
+        console.warn(`Speech synthesis voice for lang '${targetLang}' not found. Using browser default.`);
+    }
+
     utterance.rate = 1.0;
     utterance.pitch = 1;
 
     utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror', event);
+        // Provide more detailed error information for debugging.
+        console.error('SpeechSynthesisUtterance.onerror:', {
+            error: event.error,
+            text: utterance.text.substring(0, 100) + '...',
+            requestedLang: targetLang,
+            usedVoice: utterance.voice ? { name: utterance.voice.name, lang: utterance.voice.lang } : 'default (none found)'
+        });
     };
 
     window.speechSynthesis.speak(utterance);
@@ -264,6 +295,12 @@ document.addEventListener('DOMContentLoaded', () => {
         simulateUserLocation();
         simulateDriverEmotion();
         simulateVehicleOBD();
+
+        // Load speech synthesis voices
+        loadSpeechVoices();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadSpeechVoices;
+        }
 
         // Restore saved language or default to 'en'
         const savedLang = localStorage.getItem('appLanguage') || 'en';
