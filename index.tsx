@@ -251,8 +251,19 @@ const processSpeechQueue = async () => {
 
         utterance.onend = () => cleanupAndProceed();
         utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
+            let detailedError = `SpeechSynthesisUtterance.onerror: ${event.error}`;
+            if (event.error === 'not-allowed') {
+                detailedError += ". This is a browser security feature. Audio playback requires a user gesture (like a click) to start. The voice feature will be disabled for this session to prevent repeated errors.";
+                isVoiceResponseEnabled = false;
+                const voiceToggle = document.getElementById('toggle-voice-response') as HTMLInputElement;
+                if (voiceToggle) {
+                    voiceToggle.checked = false;
+                    localStorage.setItem('isVoiceResponseEnabled', 'false');
+                }
+            }
+
             console.error(
-                `SpeechSynthesisUtterance.onerror: ${event.error}`,
+                detailedError,
                 {
                     text: utterance.text.substring(0, 100) + '...',
                     langRequested: targetLang,
@@ -629,6 +640,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const setupEventListeners = () => {
+        const unlockSpeechSynthesis = () => {
+            if (window.speechSynthesis && !window.speechSynthesis.speaking) {
+                const utterance = new SpeechSynthesisUtterance("");
+                utterance.volume = 0;
+                window.speechSynthesis.speak(utterance);
+                console.log("Audio context for speech synthesis unlocked by user gesture.");
+            }
+        };
+        document.addEventListener('click', unlockSpeechSynthesis, { once: true });
+        document.addEventListener('touchend', unlockSpeechSynthesis, { once: true });
+
         const langSelect = document.getElementById('language-select') as HTMLSelectElement;
         langSelect.addEventListener('change', (e) => {
             const lang = (e.target as HTMLSelectElement).value;
