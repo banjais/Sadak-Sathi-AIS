@@ -731,6 +731,59 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // --- NEW: Route Finder Implementation ---
+        const fromInput = document.getElementById('from-input') as HTMLInputElement;
+        const toInput = document.getElementById('to-input') as HTMLInputElement;
+        const findRouteBtn = document.getElementById('find-route-btn')!;
+        const clearRouteBtn = document.getElementById('clear-route-btn')!;
+        const shareRouteBtn = document.getElementById('share-route-btn')!;
+
+        findRouteBtn.addEventListener('click', () => {
+            const fromName = fromInput.value.trim();
+            const toName = toInput.value.trim();
+
+            if (!fromName || !toName) {
+                alert("Please enter both a start and destination.");
+                return;
+            }
+
+            const fromPoi = allPois.find(p => p.name.toLowerCase() === fromName.toLowerCase());
+            const toPoi = allPois.find(p => p.name.toLowerCase() === toName.toLowerCase());
+
+            if (!fromPoi || !toPoi) {
+                alert("Could not find one or both locations. Please use exact names from the list.");
+                return;
+            }
+
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+
+            const latlngs = [
+                [fromPoi.lat, fromPoi.lng],
+                [toPoi.lat, toPoi.lng]
+            ];
+
+            routeLine = L.polyline(latlngs, { color: '#3498db', weight: 6, opacity: 0.8 }).addTo(map);
+
+            const bounds = L.latLngBounds(latlngs);
+            map.fitBounds(bounds.pad(0.1)); // pad adds some margin
+
+            shareRouteBtn.classList.remove('hidden');
+            routeFinderPanel.classList.add('hidden'); // Close panel after finding route
+        });
+
+        clearRouteBtn.addEventListener('click', () => {
+            if (routeLine) {
+                map.removeLayer(routeLine);
+                routeLine = null;
+            }
+            shareRouteBtn.classList.add('hidden');
+            // Do not clear inputs to allow for easy modification
+        });
+        // --- END: Route Finder Implementation ---
+
+
         // New Mode Switching Event Listeners
         const appModeModal = document.getElementById('app-mode-modal')!;
         document.getElementById('app-mode-btn')?.addEventListener('click', () => appModeModal.classList.remove('hidden'));
