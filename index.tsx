@@ -225,16 +225,22 @@ const processSpeechQueue = async () => {
             mai: 'hi-IN'  // Fallback for Maithili
         };
         const targetLang = langMap[currentLang] || 'en-US';
-        
+
+        // Re-fetch voices to be safe, as list can be populated asynchronously.
         availableVoices = window.speechSynthesis.getVoices();
-        let voice = availableVoices.find(v => v.lang === targetLang) || availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
         
-        // FIX: Prevent synthesis errors if a suitable voice for a non-English language is not available.
-        // The browser's default voice often cannot handle other languages, leading to an error.
+        let voice = null;
+        if (availableVoices.length > 0) {
+            voice = availableVoices.find(v => v.lang === targetLang) || 
+                    availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+        }
+        
+        // FULFILLS REQUEST: If a suitable voice is not found for a non-English language, skip speaking.
+        // This prevents errors where the browser's default voice cannot handle the requested language.
         if (!voice && !targetLang.startsWith('en')) {
-            console.warn(`No speech synthesis voice found for language '${targetLang}'. Skipping voice output for this message.`);
+            console.warn(`Speech synthesis voice for '${targetLang}' not found. Skipping audio output for this message.`);
             cleanupAndProceed();
-            return; // Skip speaking this chunk
+            return; // Exit without calling .speak()
         }
 
         if (voice) {
@@ -246,7 +252,6 @@ const processSpeechQueue = async () => {
         utterance.pitch = 1;
 
         utterance.onend = () => cleanupAndProceed();
-        // FIX: Improved error logging to be more descriptive and avoid "[object Object]".
         utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
             console.error(
                 `SpeechSynthesisUtterance.onerror: ${event.error}`,
