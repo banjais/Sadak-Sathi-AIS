@@ -95,6 +95,7 @@ let currentLang = 'en';
 let allPois: any[] = [];
 let allIncidents: any[] = [];
 let isVoiceResponseEnabled = true; // State for AI voice response feature
+let isAudioUnlocked = false; // Flag to check if user interaction has occurred
 let activeChat: any = null; // To hold the AI chat session
 let currentAppMode: 'driving' | 'riding' | 'exploring' | 'connect' = 'driving';
 let isSharingTrip = false;
@@ -312,7 +313,7 @@ const splitTextIntoChunks = (text: string, chunkSize = 150): string[] => {
 
 
 const speakText = (text: string) => {
-    if (!isVoiceResponseEnabled || !('speechSynthesis' in window) || !text) return;
+    if (!isAudioUnlocked || !isVoiceResponseEnabled || !('speechSynthesis' in window) || !text) return;
     const sanitizedText = text.replace(/[*_`]/g, '');
     const chunks = splitTextIntoChunks(sanitizedText);
     chunks.forEach(chunk => speechQueue.push(chunk));
@@ -641,10 +642,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const setupEventListeners = () => {
         const unlockSpeechSynthesis = () => {
-            if (window.speechSynthesis && !window.speechSynthesis.speaking) {
+            if (window.speechSynthesis && !isAudioUnlocked) {
                 const utterance = new SpeechSynthesisUtterance("");
                 utterance.volume = 0;
                 window.speechSynthesis.speak(utterance);
+                isAudioUnlocked = true;
                 console.log("Audio context for speech synthesis unlocked by user gesture.");
             }
         };
