@@ -228,24 +228,22 @@ const processSpeechQueue = async () => {
 
         // Re-fetch voices to be safe, as list can be populated asynchronously.
         availableVoices = window.speechSynthesis.getVoices();
-        
+
         let voice = null;
         if (availableVoices.length > 0) {
-            voice = availableVoices.find(v => v.lang === targetLang) || 
+            voice = availableVoices.find(v => v.lang === targetLang) ||
                     availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
         }
-        
-        // FULFILLS REQUEST: If a suitable voice is not found for a non-English language, skip speaking.
-        // This prevents errors where the browser's default voice cannot handle the requested language.
-        if (!voice && !targetLang.startsWith('en')) {
-            console.warn(`Speech synthesis voice for '${targetLang}' not found. Skipping audio output for this message.`);
-            cleanupAndProceed();
-            return; // Exit without calling .speak()
-        }
 
+        // Assign the found voice, or if none is found for a non-English language,
+        // log a warning and skip speaking to prevent errors.
         if (voice) {
             utterance.voice = voice;
             utterance.lang = voice.lang;
+        } else if (!targetLang.startsWith('en')) {
+            console.warn(`Speech synthesis voice for '${targetLang}' not found on this system. Skipping audio output for this message.`);
+            cleanupAndProceed();
+            return; // Exit without calling .speak()
         }
 
         utterance.rate = 1.0;
