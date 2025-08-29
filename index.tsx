@@ -229,6 +229,14 @@ const processSpeechQueue = async () => {
         availableVoices = window.speechSynthesis.getVoices();
         let voice = availableVoices.find(v => v.lang === targetLang) || availableVoices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
         
+        // FIX: Prevent synthesis errors if a suitable voice for a non-English language is not available.
+        // The browser's default voice often cannot handle other languages, leading to an error.
+        if (!voice && !targetLang.startsWith('en')) {
+            console.warn(`No speech synthesis voice found for language '${targetLang}'. Skipping voice output for this message.`);
+            cleanupAndProceed();
+            return; // Skip speaking this chunk
+        }
+
         if (voice) {
             utterance.voice = voice;
             utterance.lang = voice.lang;
@@ -238,13 +246,16 @@ const processSpeechQueue = async () => {
         utterance.pitch = 1;
 
         utterance.onend = () => cleanupAndProceed();
-        utterance.onerror = (event) => {
-            console.error('SpeechSynthesisUtterance.onerror:', {
-                error: (event as any).error,
-                text: utterance.text.substring(0, 100) + '...',
-                langRequested: targetLang,
-                voiceFound: voice ? `${voice.name} (${voice.lang})` : 'none',
-            });
+        // FIX: Improved error logging to be more descriptive and avoid "[object Object]".
+        utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
+            console.error(
+                `SpeechSynthesisUtterance.onerror: ${event.error}`,
+                {
+                    text: utterance.text.substring(0, 100) + '...',
+                    langRequested: targetLang,
+                    voiceFound: voice ? `${voice.name} (${voice.lang})` : 'none',
+                }
+            );
             window.speechSynthesis.cancel(); // Force reset on error
             cleanupAndProceed();
         };
